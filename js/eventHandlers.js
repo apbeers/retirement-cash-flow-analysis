@@ -1,5 +1,9 @@
 // =============================================================================
-// EventHandlers — sidebar navigation, settings panel, DOMContentLoaded init
+// Event Handlers — DOMContentLoaded wiring, theme, sidebar nav, settings,
+//                  import/export, keyboard shortcuts
+// Exports: applyTheme
+// Depends on: constants.js, state.js, appState.js, renderer.js,
+//             modalController.js, serializer.js
 // =============================================================================
 
 import { DEFAULT_SETTINGS } from './constants.js';

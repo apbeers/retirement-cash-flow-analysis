@@ -1,6 +1,8 @@
 // =============================================================================
-// Calculator — calcItemValue, calcItemBalance, calc401kBalance,
-//              calcLoanSchedule, calcTax, calcProjection, calcStats
+// Calculator — pure financial calculation functions (no DOM, no side effects)
+// Exports: calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule,
+//          getLoanPayoffYear, inflateBrackets, applyMarginalBrackets,
+//          determineLTCGTax, calcTax, calcProjection, calcStats
 // Depends on: constants.js, taxBrackets.js
 // =============================================================================
 

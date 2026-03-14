@@ -152,8 +152,10 @@ function formatMoney(value) {
 
 // --- js/calculator.js ---
 // =============================================================================
-// Calculator — calcItemValue, calcItemBalance, calc401kBalance,
-//              calcLoanSchedule, calcTax, calcProjection, calcStats
+// Calculator — pure financial calculation functions (no DOM, no side effects)
+// Exports: calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule,
+//          getLoanPayoffYear, inflateBrackets, applyMarginalBrackets,
+//          determineLTCGTax, calcTax, calcProjection, calcStats
 // Depends on: constants.js, taxBrackets.js
 // =============================================================================
 function calcItemValue(item, year) {
@@ -587,7 +589,8 @@ function calcStats(items, settings) {
 
 // --- js/serializer.js ---
 // =============================================================================
-// Serializer — exportToXlsx(items), importFromXlsx(file)
+// Serializer — Excel import/export via SheetJS (XLSX CDN global)
+// Exports: exportToXlsx, importFromXlsx
 // Depends on: XLSX (global from CDN)
 // =============================================================================
 
@@ -778,181 +781,28 @@ const state = {
 };
 
 
-// --- js/renderer.js ---
+// --- js/timeline.js ---
 // =============================================================================
-// Renderer
+// Timeline — Gantt-style cash flow timeline, crosshair sync state
+// Depends on: constants.js, prettyPrinter.js, calculator.js, uiConstants.js,
+//             appState.js
+// Exports: buildTimelineBars, renderTimeline, renderTaxBreakdown,
+//          _setCrosshairYear, _getCrosshairYear
 // =============================================================================
 
 
 
-
-
-// Track per-item chart instances so we can destroy them on re-render
-var _itemCharts = {};
 
 var TYPE_COLORS = { bank:'#4fc3f7', investments:'#81c784', property:'#ffb74d', vehicles:'#e57373', rentals:'#ba68c8', inflows:'#4db6ac', outflows:'#f06292' };
 
 // Crosshair state shared between chart and timeline
 var _crosshairYear = null;
-function renderItemList() {
-  const listArea = document.getElementById('item-list-area');
-  const statsRow = document.getElementById('stats-row');
-  const chartContainer = document.getElementById('chart-container');
-
-  if (state.activeSection === 'dashboard') {
-    if (listArea) listArea.style.display = 'none';
-    if (statsRow) statsRow.style.display = '';
-    if (chartContainer) chartContainer.style.display = '';
-    return;
-  }
-  if (statsRow) statsRow.style.display = 'none';
-  if (chartContainer) chartContainer.style.display = 'none';
-  if (listArea) listArea.style.display = '';
-
-  const filtered = state.items.filter(item => item.type === state.activeSection);
-  if (!listArea) return;
-  if (filtered.length === 0) { renderEmptyState(); return; }
-
-  const projEnd = state.settings.startYear + state.settings.projectionYears - 1;
-  const rows = filtered.map((item) => {
-    const idx = state.items.indexOf(item);
-    const icon = TYPE_ICONS[item.type] || 'bi-circle';
-    const rs = item.rate > 0 ? '+' : '';
-    const yr = item.endYear == null ? (item.startYear + ' \u2013 ongoing') : (item.startYear + '\u2013' + item.endYear);
-    const meta = item.category + ' \u00B7 ' + yr + ' \u00B7 ' + rs + item.rate + '%';
-    var extra = '';
-    if (item.contributionAmount > 0 && item.contributionFrequency) {
-      var contribText = '+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution';
-      if (item.contributionEndYear != null) contribText += ' (until ' + item.contributionEndYear + ')';
-      extra += '<div class="item-meta">' + contribText + '</div>';
-    }
-    if (item.withdrawalAmount > 0 && item.withdrawalFrequency) {
-      extra += '<div class="item-meta">\u2212' + formatMoney(item.withdrawalAmount) + (item.withdrawalFrequency === 'monthly' ? '/mo' : '/yr') + ' withdrawal</div>';
-    }
-    if (item.loan) {
-      var sch = calcLoanSchedule(item.loan, item.startYear, projEnd);
-      var lb = sch.length > 0 ? sch[0].closingBalance : item.loan.loanAmount;
-      var eq = Math.max(0, calcItemValue(item, item.startYear) - lb);
-      extra += '<div class="item-meta">Loan: ' + formatMoney(lb) + ' balance \u00B7 Equity: ' + formatMoney(eq) + '</div>';
-      var payoffYear = getLoanPayoffYear(sch);
-      if (payoffYear != null) {
-        extra += '<div class="item-meta">Paid off: ' + payoffYear + '</div>';
-      } else {
-        extra += '<div class="item-meta">Paid off: beyond ' + projEnd + '</div>';
-      }
-    }
-    if (item.retirement401k) {
-      var r = item.retirement401k, ec = r.employeeContribution || 0;
-      var ma = Math.min(ec, (r.annualSalary || 0) * (r.employerMatchCapPct || 0) / 100) * (r.employerMatchPct || 0) / 100;
-      extra += '<div class="item-meta">Employee: ' + formatMoney(ec) + '/yr \u00B7 Match: ' + formatMoney(ma) + '/yr</div>';
-    }
-    var ldh = '';
-    if (item.loan) {
-      var ls = calcLoanSchedule(item.loan, item.startYear, projEnd), tr = '';
-      for (var i = 0; i < ls.length; i++) { var s = ls[i]; tr += '<tr><td>'+s.year+'</td><td>'+formatMoney(s.openingBalance)+'</td><td>'+formatMoney(s.principalPaid)+'</td><td>'+formatMoney(s.interestPaid)+'</td><td>'+formatMoney(s.escrowPaid)+'</td><td>'+formatMoney(s.closingBalance)+'</td></tr>'; }
-      ldh = '<div class="loan-details-section"><button class="btn btn-sm btn-outline-secondary loan-details-toggle" onclick="this.parentElement.classList.toggle(\'expanded\')"><i class="bi bi-chevron-down"></i> Loan Details</button><div class="loan-details-table-wrapper"><table class="table table-sm loan-details-table"><thead><tr><th>Year</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Escrow</th><th>Closing</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>';
-    }
-    return '<div class="item-row" data-item-index="'+idx+'"><i class="bi '+icon+' item-icon"></i><div class="flex-grow-1"><div class="item-name">'+_escapeHtml(item.name)+'</div><div class="item-meta">'+_escapeHtml(meta)+'</div>'+extra+ldh+'<div class="item-chart-section" id="item-chart-section-'+idx+'" style="display:none"><canvas id="item-chart-'+idx+'" height="150"></canvas></div></div><div class="item-value">'+formatMoney(item.amount)+'</div><div class="item-action-area"><button class="btn btn-sm btn-outline-secondary" onclick="toggleItemChart('+idx+')" title="Chart"><i class="bi bi-graph-up"></i></button><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal('+idx+')" title="Edit"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="initiateDelete('+idx+')" title="Delete"><i class="bi bi-trash"></i></button></div></div>';
-  });
-  listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
-
-  // Auto-render charts for all visible items
-  filtered.forEach((item) => {
-    var idx = state.items.indexOf(item);
-    try { toggleItemChart(idx); } catch (e) { /* Chart.js not available in test env */ }
-  });
-}
-function toggleItemChart(idx) {
-  var section = document.getElementById('item-chart-section-' + idx);
-  if (!section) return;
-
-  // Toggle visibility
-  if (section.style.display !== 'none') {
-    section.style.display = 'none';
-    if (_itemCharts[idx]) { _itemCharts[idx].destroy(); delete _itemCharts[idx]; }
-    return;
-  }
-  section.style.display = '';
-
-  var item = state.items[idx];
-  if (!item) return;
-
-  var startYear = state.settings.startYear;
-  var projEnd = startYear + state.settings.projectionYears - 1;
-  var effectiveEnd = item.endYear == null ? projEnd : Math.min(item.endYear, projEnd);
-  var effectiveStart = Math.max(item.startYear, startYear);
-
-  var years = [];
-  var values = [];
-  var balanceCache = {};
-
-  var is401k = (item.category === 'Traditional 401(k)' || item.category === 'Roth 401(k)') && item.retirement401k;
-  var hasContribOrWithdraw = (item.contributionAmount > 0) || (item.withdrawalAmount > 0);
-  var hasLoan = item.loan && item.loan.loanAmount > 0;
-  var loanSchedule = hasLoan ? calcLoanSchedule(item.loan, item.startYear, projEnd) : null;
-
-  for (var y = effectiveStart; y <= effectiveEnd; y++) {
-    years.push(y);
-    var val = 0;
-
-    if (item.type === 'inflows' || item.type === 'outflows') {
-      val = item.amount;
-    } else if (is401k) {
-      val = calc401kBalance(item, y, balanceCache, projEnd);
-    } else if (ASSET_TYPES.includes(item.type) && hasContribOrWithdraw) {
-      val = calcItemBalance(item, y, balanceCache, projEnd);
-    } else if (hasLoan && loanSchedule) {
-      var assetVal = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
-      var entry = loanSchedule.find(function(e) { return e.year === y; });
-      val = assetVal - (entry ? entry.closingBalance : 0);
-    } else {
-      val = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
-    }
-    values.push(val);
-  }
-
-  var canvas = document.getElementById('item-chart-' + idx);
-  if (!canvas) return;
-
-  if (_itemCharts[idx]) { _itemCharts[idx].destroy(); }
-
-  _itemCharts[idx] = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: years,
-      datasets: [{
-        label: item.name,
-        data: values,
-        borderColor: '#58a6ff',
-        backgroundColor: 'rgba(88, 166, 255, 0.1)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) { return formatMoney(ctx.parsed.y); }
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: '#9e9e9e', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: {
-          ticks: {
-            color: '#9e9e9e',
-            callback: function(v) { return formatMoney(v); }
-          },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
-      }
-    }
-  });
+function _getCrosshairYear() { return _crosshairYear; }
+function _setCrosshairYear(year) {
+  if (_crosshairYear === year) return;
+  _crosshairYear = year;
+  _updateTimelineCrosshair();
+  if (state.chartInstance) state.chartInstance.draw();
 }
 function buildTimelineBars(items, settings) {
   var projStart = settings.startYear;
@@ -1086,117 +936,6 @@ function renderTimeline() {
     });
   }
 }
-function renderTaxBreakdown() {
-  const panel = document.getElementById('taxBreakdownPanel');
-  if (!panel) return;
-
-  if (state.activeSection !== 'dashboard') {
-    panel.style.display = 'none';
-    return;
-  }
-
-  const proj = calcProjection(state.items, state.settings);
-  if (proj.length === 0 || !proj[0].tax) {
-    panel.style.display = 'none';
-    return;
-  }
-
-  const tax = proj[0].tax;
-  const filingStatus = (state.settings.tax && state.settings.tax.filingStatus) || 'single';
-  const statusLabel = filingStatus === 'married_filing_jointly' ? 'Married Filing Jointly' : 'Single';
-
-  panel.style.display = '';
-  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setEl('tax-filingStatus', statusLabel);
-  setEl('tax-ordinaryIncome', formatMoney(tax.ordinaryIncome));
-  setEl('tax-ltcgIncome', formatMoney(tax.ltcgIncome));
-  setEl('tax-taxableSS', formatMoney(tax.taxableSocialSecurity));
-  setEl('tax-standardDeduction', formatMoney(tax.standardDeduction));
-  setEl('tax-taxableOrdinaryIncome', formatMoney(tax.taxableOrdinaryIncome));
-  setEl('tax-ordinaryTax', formatMoney(tax.ordinaryTax));
-  setEl('tax-ltcgTax', formatMoney(tax.ltcgTax));
-  setEl('tax-totalEstimatedTax', formatMoney(tax.totalEstimatedTax));
-}
-function renderEmptyState() {
-  const listArea = document.getElementById('item-list-area');
-  if (!listArea) return;
-  const label = TYPE_LABELS[state.activeSection] || state.activeSection;
-  listArea.innerHTML = '<div class="empty-state"><i class="bi '+(TYPE_ICONS[state.activeSection]||'bi-inbox')+'"></i><p>No '+label+' items yet.</p><p class="small">Click "Add '+label+'" to get started.</p></div>';
-}
-function updateBadges() {
-  for (const type of ALL_TYPES) {
-    const b = document.getElementById('badge-' + type);
-    if (b) b.textContent = state.items.filter(i => i.type === type).length;
-  }
-  const addBtn = document.getElementById('btn-add-item');
-  if (!addBtn) return;
-  if (state.items.length >= MAX_ITEMS) {
-    addBtn.disabled = true;
-    let w = document.getElementById('max-items-warning');
-    if (!w) { w = document.createElement('span'); w.id = 'max-items-warning'; w.className = 'badge bg-warning text-dark ms-2'; w.textContent = 'Max items reached'; addBtn.parentNode.insertBefore(w, addBtn.nextSibling); }
-  } else {
-    addBtn.disabled = false;
-    const w = document.getElementById('max-items-warning');
-    if (w) w.remove();
-  }
-}
-function updateStats() {
-  const s = calcStats(state.items, state.settings);
-  const e1 = document.getElementById('stat-totalAssets');
-  const e2 = document.getElementById('stat-annualInflow');
-  const e3 = document.getElementById('stat-annualOutflow');
-  if (e1) e1.textContent = formatMoney(s.totalAssets);
-  if (e2) e2.textContent = formatMoney(s.annualInflow);
-  if (e3) e3.textContent = formatMoney(s.annualOutflow);
-}
-
-// Crosshair plugin for Chart.js — draws a vertical line at the hovered x position
-var _crosshairPlugin = {
-  id: 'crosshairSync',
-  afterDraw: function(chart) {
-    if (_crosshairYear == null) return;
-    var xScale = chart.scales.x;
-    if (!xScale) return;
-    var labels = chart.data.labels;
-    var idx = labels.indexOf(_crosshairYear);
-    if (idx < 0) return;
-    var x = xScale.getPixelForValue(idx);
-    var ctx = chart.ctx;
-    var yTop = chart.chartArea.top;
-    var yBottom = chart.chartArea.bottom;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(x, yTop);
-    ctx.lineTo(x, yBottom);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.stroke();
-    ctx.restore();
-  }
-};
-
-function _handleChartHover(evt, chart) {
-  var xScale = chart.scales.x;
-  if (!xScale || !evt.native) { _setCrosshairYear(null); return; }
-  var rect = chart.canvas.getBoundingClientRect();
-  var mouseX = evt.native.clientX - rect.left;
-  if (mouseX < chart.chartArea.left || mouseX > chart.chartArea.right) { _setCrosshairYear(null); return; }
-  var idx = xScale.getValueForPixel(mouseX);
-  var labels = chart.data.labels;
-  var yearIdx = Math.round(idx);
-  if (yearIdx >= 0 && yearIdx < labels.length) {
-    _setCrosshairYear(labels[yearIdx]);
-  } else {
-    _setCrosshairYear(null);
-  }
-}
-
-function _setCrosshairYear(year) {
-  if (_crosshairYear === year) return;
-  _crosshairYear = year;
-  _updateTimelineCrosshair();
-  if (state.chartInstance) state.chartInstance.draw();
-}
 
 function _updateTimelineCrosshair() {
   var container = document.getElementById('timeline-container');
@@ -1230,8 +969,6 @@ function _updateTimelineCrosshair() {
   // Draw vertical line on timeline
   var line = document.createElement('div');
   line.className = 'timeline-crosshair';
-  line.style.left = 'calc(130px + ' + pct + '% * (100% - 130px) / 100%)';
-  // Use the bar-area width calculation: label is 130px, rest is bar area
   var barAreas = container.querySelectorAll('.timeline-bar-area');
   if (barAreas.length > 0) {
     var areaRect = barAreas[0].getBoundingClientRect();
@@ -1266,25 +1003,20 @@ function _updateTimelineCrosshair() {
       var item = state.items[b.itemIndex];
       if (!item) continue;
 
-      // Contributions (if still active at this year)
       if (item.contributionAmount > 0 && (item.contributionEndYear == null || _crosshairYear <= item.contributionEndYear)) {
         var contribMonthly = item.contributionFrequency === 'monthly' ? item.contributionAmount : item.contributionAmount / 12;
         monthlyNet += contribMonthly;
       }
-      // Withdrawals
       if (item.withdrawalAmount > 0) {
         var withdrawMonthly = item.withdrawalFrequency === 'monthly' ? item.withdrawalAmount : item.withdrawalAmount / 12;
         monthlyNet -= withdrawMonthly;
       }
-      // Inflows
       if (item.type === 'inflows') {
         monthlyNet += item.amount / 12;
       }
-      // Outflows
       if (item.type === 'outflows') {
         monthlyNet -= item.amount / 12;
       }
-      // Loan payments
       if (item.loan && item.loan.monthlyPayment > 0) {
         var payoffYear = b.loanPayoffYear;
         if (payoffYear == null || _crosshairYear <= payoffYear) {
@@ -1301,6 +1033,95 @@ function _updateTimelineCrosshair() {
   summary.textContent = _crosshairYear + ' \u00B7 Net: ' + sign + formatMoney(Math.round(monthlyNet)) + '/mo';
   summary.style.color = monthlyNet >= 0 ? '#81c784' : '#f06292';
   container.appendChild(summary);
+}
+function renderTaxBreakdown() {
+  const panel = document.getElementById('taxBreakdownPanel');
+  if (!panel) return;
+
+  if (state.activeSection !== 'dashboard') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const proj = calcProjection(state.items, state.settings);
+  if (proj.length === 0 || !proj[0].tax) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const tax = proj[0].tax;
+  const filingStatus = (state.settings.tax && state.settings.tax.filingStatus) || 'single';
+  const statusLabel = filingStatus === 'married_filing_jointly' ? 'Married Filing Jointly' : 'Single';
+
+  panel.style.display = '';
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('tax-filingStatus', statusLabel);
+  setEl('tax-ordinaryIncome', formatMoney(tax.ordinaryIncome));
+  setEl('tax-ltcgIncome', formatMoney(tax.ltcgIncome));
+  setEl('tax-taxableSS', formatMoney(tax.taxableSocialSecurity));
+  setEl('tax-standardDeduction', formatMoney(tax.standardDeduction));
+  setEl('tax-taxableOrdinaryIncome', formatMoney(tax.taxableOrdinaryIncome));
+  setEl('tax-ordinaryTax', formatMoney(tax.ordinaryTax));
+  setEl('tax-ltcgTax', formatMoney(tax.ltcgTax));
+  setEl('tax-totalEstimatedTax', formatMoney(tax.totalEstimatedTax));
+}
+
+
+// --- js/chart.js ---
+// =============================================================================
+// Chart — updateChart, crosshair plugin, hover handling
+// Depends on: constants.js, prettyPrinter.js, calculator.js, uiConstants.js,
+//             appState.js, timeline.js
+// Exports: updateChart
+// =============================================================================
+
+
+
+
+
+
+var TYPE_COLORS = { bank:'#4fc3f7', investments:'#81c784', property:'#ffb74d', vehicles:'#e57373', rentals:'#ba68c8', inflows:'#4db6ac', outflows:'#f06292' };
+
+// Crosshair plugin for Chart.js — draws a vertical line at the hovered x position
+var _crosshairPlugin = {
+  id: 'crosshairSync',
+  afterDraw: function(chart) {
+    var year = _getCrosshairYear();
+    if (year == null) return;
+    var xScale = chart.scales.x;
+    if (!xScale) return;
+    var labels = chart.data.labels;
+    var idx = labels.indexOf(year);
+    if (idx < 0) return;
+    var x = xScale.getPixelForValue(idx);
+    var ctx = chart.ctx;
+    var yTop = chart.chartArea.top;
+    var yBottom = chart.chartArea.bottom;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, yTop);
+    ctx.lineTo(x, yBottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+function _handleChartHover(evt, chart) {
+  var xScale = chart.scales.x;
+  if (!xScale || !evt.native) { _setCrosshairYear(null); return; }
+  var rect = chart.canvas.getBoundingClientRect();
+  var mouseX = evt.native.clientX - rect.left;
+  if (mouseX < chart.chartArea.left || mouseX > chart.chartArea.right) { _setCrosshairYear(null); return; }
+  var idx = xScale.getValueForPixel(mouseX);
+  var labels = chart.data.labels;
+  var yearIdx = Math.round(idx);
+  if (yearIdx >= 0 && yearIdx < labels.length) {
+    _setCrosshairYear(labels[yearIdx]);
+  } else {
+    _setCrosshairYear(null);
+  }
 }
 function updateChart() {
   try {
@@ -1336,6 +1157,216 @@ function updateChart() {
     }
   } catch (err) { console.error('Chart render error:', err); }
 }
+
+
+// --- js/renderer.js ---
+// =============================================================================
+// Renderer — item list, stats, badges, empty state, render orchestration
+// Exports: renderItemList, toggleItemChart, renderEmptyState, updateBadges,
+//          updateStats, navigateToItem, render
+// Depends on: constants.js, prettyPrinter.js, calculator.js, uiConstants.js,
+//             appState.js, chart.js, timeline.js
+// =============================================================================
+
+
+
+
+
+
+
+// Track per-item chart instances so we can destroy them on re-render
+var _itemCharts = {};
+function renderItemList() {
+  const listArea = document.getElementById('item-list-area');
+  const statsRow = document.getElementById('stats-row');
+  const chartContainer = document.getElementById('chart-container');
+
+  if (state.activeSection === 'dashboard') {
+    if (listArea) listArea.style.display = 'none';
+    if (statsRow) statsRow.style.display = '';
+    if (chartContainer) chartContainer.style.display = '';
+    return;
+  }
+  if (statsRow) statsRow.style.display = 'none';
+  if (chartContainer) chartContainer.style.display = 'none';
+  if (listArea) listArea.style.display = '';
+
+  const filtered = state.items.filter(item => item.type === state.activeSection);
+  if (!listArea) return;
+  if (filtered.length === 0) { renderEmptyState(); return; }
+
+  const projEnd = state.settings.startYear + state.settings.projectionYears - 1;
+  const rows = filtered.map((item) => {
+    const idx = state.items.indexOf(item);
+    const icon = TYPE_ICONS[item.type] || 'bi-circle';
+    const rs = item.rate > 0 ? '+' : '';
+    const yr = item.endYear == null ? (item.startYear + ' \u2013 ongoing') : (item.startYear + '\u2013' + item.endYear);
+    const meta = item.category + ' \u00B7 ' + yr + ' \u00B7 ' + rs + item.rate + '%';
+    var extra = '';
+    if (item.contributionAmount > 0 && item.contributionFrequency) {
+      var contribText = '+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution';
+      if (item.contributionEndYear != null) contribText += ' (until ' + item.contributionEndYear + ')';
+      extra += '<div class="item-meta">' + contribText + '</div>';
+    }
+    if (item.withdrawalAmount > 0 && item.withdrawalFrequency) {
+      extra += '<div class="item-meta">\u2212' + formatMoney(item.withdrawalAmount) + (item.withdrawalFrequency === 'monthly' ? '/mo' : '/yr') + ' withdrawal</div>';
+    }
+    if (item.loan) {
+      var sch = calcLoanSchedule(item.loan, item.startYear, projEnd);
+      var lb = sch.length > 0 ? sch[0].closingBalance : item.loan.loanAmount;
+      var eq = Math.max(0, calcItemValue(item, item.startYear) - lb);
+      extra += '<div class="item-meta">Loan: ' + formatMoney(lb) + ' balance \u00B7 Equity: ' + formatMoney(eq) + '</div>';
+      var payoffYear = getLoanPayoffYear(sch);
+      if (payoffYear != null) {
+        extra += '<div class="item-meta">Paid off: ' + payoffYear + '</div>';
+      } else {
+        extra += '<div class="item-meta">Paid off: beyond ' + projEnd + '</div>';
+      }
+    }
+    if (item.retirement401k) {
+      var r = item.retirement401k, ec = r.employeeContribution || 0;
+      var ma = Math.min(ec, (r.annualSalary || 0) * (r.employerMatchCapPct || 0) / 100) * (r.employerMatchPct || 0) / 100;
+      extra += '<div class="item-meta">Employee: ' + formatMoney(ec) + '/yr \u00B7 Match: ' + formatMoney(ma) + '/yr</div>';
+    }
+    var ldh = '';
+    if (item.loan) {
+      var ls = calcLoanSchedule(item.loan, item.startYear, projEnd), tr = '';
+      for (var i = 0; i < ls.length; i++) { var s = ls[i]; tr += '<tr><td>'+s.year+'</td><td>'+formatMoney(s.openingBalance)+'</td><td>'+formatMoney(s.principalPaid)+'</td><td>'+formatMoney(s.interestPaid)+'</td><td>'+formatMoney(s.escrowPaid)+'</td><td>'+formatMoney(s.closingBalance)+'</td></tr>'; }
+      ldh = '<div class="loan-details-section"><button class="btn btn-sm btn-outline-secondary loan-details-toggle" onclick="this.parentElement.classList.toggle(\'expanded\')"><i class="bi bi-chevron-down"></i> Loan Details</button><div class="loan-details-table-wrapper"><table class="table table-sm loan-details-table"><thead><tr><th>Year</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Escrow</th><th>Closing</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>';
+    }
+    return '<div class="item-row" data-item-index="'+idx+'"><i class="bi '+icon+' item-icon"></i><div class="flex-grow-1"><div class="item-name">'+_escapeHtml(item.name)+'</div><div class="item-meta">'+_escapeHtml(meta)+'</div>'+extra+ldh+'<div class="item-chart-section" id="item-chart-section-'+idx+'" style="display:none"><canvas id="item-chart-'+idx+'" height="150"></canvas></div></div><div class="item-value">'+formatMoney(item.amount)+'</div><div class="item-action-area"><button class="btn btn-sm btn-outline-secondary" onclick="toggleItemChart('+idx+')" title="Chart"><i class="bi bi-graph-up"></i></button><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal('+idx+')" title="Edit"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="initiateDelete('+idx+')" title="Delete"><i class="bi bi-trash"></i></button></div></div>';
+  });
+  listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
+
+  // Auto-render charts for all visible items
+  filtered.forEach((item) => {
+    var idx = state.items.indexOf(item);
+    try { toggleItemChart(idx); } catch (e) { /* Chart.js not available in test env */ }
+  });
+}
+function toggleItemChart(idx) {
+  var section = document.getElementById('item-chart-section-' + idx);
+  if (!section) return;
+
+  if (section.style.display !== 'none') {
+    section.style.display = 'none';
+    if (_itemCharts[idx]) { _itemCharts[idx].destroy(); delete _itemCharts[idx]; }
+    return;
+  }
+  section.style.display = '';
+
+  var item = state.items[idx];
+  if (!item) return;
+
+  var startYear = state.settings.startYear;
+  var projEnd = startYear + state.settings.projectionYears - 1;
+  var effectiveEnd = item.endYear == null ? projEnd : Math.min(item.endYear, projEnd);
+  var effectiveStart = Math.max(item.startYear, startYear);
+
+  var years = [];
+  var values = [];
+  var balanceCache = {};
+
+  var is401k = (item.category === 'Traditional 401(k)' || item.category === 'Roth 401(k)') && item.retirement401k;
+  var hasContribOrWithdraw = (item.contributionAmount > 0) || (item.withdrawalAmount > 0);
+  var hasLoan = item.loan && item.loan.loanAmount > 0;
+  var loanSchedule = hasLoan ? calcLoanSchedule(item.loan, item.startYear, projEnd) : null;
+
+  for (var y = effectiveStart; y <= effectiveEnd; y++) {
+    years.push(y);
+    var val = 0;
+
+    if (item.type === 'inflows' || item.type === 'outflows') {
+      val = item.amount;
+    } else if (is401k) {
+      val = calc401kBalance(item, y, balanceCache, projEnd);
+    } else if (ASSET_TYPES.includes(item.type) && hasContribOrWithdraw) {
+      val = calcItemBalance(item, y, balanceCache, projEnd);
+    } else if (hasLoan && loanSchedule) {
+      var assetVal = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
+      var entry = loanSchedule.find(function(e) { return e.year === y; });
+      val = assetVal - (entry ? entry.closingBalance : 0);
+    } else {
+      val = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
+    }
+    values.push(val);
+  }
+
+  var canvas = document.getElementById('item-chart-' + idx);
+  if (!canvas) return;
+
+  if (_itemCharts[idx]) { _itemCharts[idx].destroy(); }
+
+  _itemCharts[idx] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [{
+        label: item.name,
+        data: values,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return formatMoney(ctx.parsed.y); }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#9e9e9e', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: {
+          ticks: {
+            color: '#9e9e9e',
+            callback: function(v) { return formatMoney(v); }
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+function renderEmptyState() {
+  const listArea = document.getElementById('item-list-area');
+  if (!listArea) return;
+  const label = TYPE_LABELS[state.activeSection] || state.activeSection;
+  listArea.innerHTML = '<div class="empty-state"><i class="bi '+(TYPE_ICONS[state.activeSection]||'bi-inbox')+'"></i><p>No '+label+' items yet.</p><p class="small">Click "Add '+label+'" to get started.</p></div>';
+}
+function updateBadges() {
+  for (const type of ALL_TYPES) {
+    const b = document.getElementById('badge-' + type);
+    if (b) b.textContent = state.items.filter(i => i.type === type).length;
+  }
+  const addBtn = document.getElementById('btn-add-item');
+  if (!addBtn) return;
+  if (state.items.length >= MAX_ITEMS) {
+    addBtn.disabled = true;
+    let w = document.getElementById('max-items-warning');
+    if (!w) { w = document.createElement('span'); w.id = 'max-items-warning'; w.className = 'badge bg-warning text-dark ms-2'; w.textContent = 'Max items reached'; addBtn.parentNode.insertBefore(w, addBtn.nextSibling); }
+  } else {
+    addBtn.disabled = false;
+    const w = document.getElementById('max-items-warning');
+    if (w) w.remove();
+  }
+}
+function updateStats() {
+  const s = calcStats(state.items, state.settings);
+  const e1 = document.getElementById('stat-totalAssets');
+  const e2 = document.getElementById('stat-annualInflow');
+  const e3 = document.getElementById('stat-annualOutflow');
+  if (e1) e1.textContent = formatMoney(s.totalAssets);
+  if (e2) e2.textContent = formatMoney(s.annualInflow);
+  if (e3) e3.textContent = formatMoney(s.annualOutflow);
+}
 function navigateToItem(itemIndex) {
   var item = state.items[itemIndex];
   if (!item) return;
@@ -1355,7 +1386,6 @@ function render() {
   if (titleEl) titleEl.textContent = meta.title;
   if (subtitleEl) subtitleEl.textContent = meta.subtitle;
 
-  // Toggle add button visibility
   const addBtn = document.getElementById('btn-add-item');
   const addLabel = document.getElementById('btn-add-label');
   if (addBtn) {
@@ -1367,7 +1397,6 @@ function render() {
     }
   }
 
-  // Highlight active nav link
   const navLinks = document.querySelectorAll('#sidebar .nav-link[data-section]');
   navLinks.forEach(link => {
     if (link.dataset.section === state.activeSection) {
@@ -1377,7 +1406,6 @@ function render() {
     }
   });
 
-  // Tax breakdown panel visibility
   const taxPanel = document.getElementById('taxBreakdownPanel');
   if (taxPanel) {
     taxPanel.style.display = state.activeSection === 'dashboard' ? '' : 'none';
@@ -1394,8 +1422,11 @@ function render() {
 
 // --- js/modalController.js ---
 // =============================================================================
-// ModalController — openAddModal(type), openEditModal(index), closeModal()
-//                   form submit handler, inline delete confirmation
+// Modal Controller — add/edit/delete item modals, form validation
+// Exports: openAddModal, openEditModal, closeModal, _populateCategorySelect,
+//          _updateFieldGroupVisibility, _handleSaveItem, initiateDelete,
+//          confirmDelete, cancelDelete
+// Depends on: constants.js, appState.js, state.js, renderer.js
 // =============================================================================
 
 
@@ -1777,7 +1808,11 @@ function cancelDelete(index) {
 
 // --- js/eventHandlers.js ---
 // =============================================================================
-// EventHandlers — sidebar navigation, settings panel, DOMContentLoaded init
+// Event Handlers — DOMContentLoaded wiring, theme, sidebar nav, settings,
+//                  import/export, keyboard shortcuts
+// Exports: applyTheme
+// Depends on: constants.js, state.js, appState.js, renderer.js,
+//             modalController.js, serializer.js
 // =============================================================================
 function applyTheme(theme) {
   const t = theme || DEFAULT_SETTINGS.theme;
@@ -2035,6 +2070,10 @@ if (typeof document !== 'undefined') {
 // --- js/chatbot.js ---
 // =============================================================================
 // Chatbot — In-browser AI assistant powered by WebLLM
+// Model: Qwen2.5-3B-Instruct (4096 token context window)
+// Exports: toggleChatPanel, sendChatMessage, handleChatKeydown,
+//          checkWebGPU, assembleFinancialContext
+// Depends on: appState.js, prettyPrinter.js, calculator.js, constants.js
 // =============================================================================
 
 

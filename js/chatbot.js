@@ -1,5 +1,9 @@
 // =============================================================================
 // Chatbot — In-browser AI assistant powered by WebLLM
+// Model: Qwen2.5-3B-Instruct (4096 token context window)
+// Exports: toggleChatPanel, sendChatMessage, handleChatKeydown,
+//          checkWebGPU, assembleFinancialContext
+// Depends on: appState.js, prettyPrinter.js, calculator.js, constants.js
 // =============================================================================
 
 import { state } from './appState.js';

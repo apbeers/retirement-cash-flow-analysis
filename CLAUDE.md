@@ -36,12 +36,14 @@ Open `index.html` in a browser — no dev server needed.
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
    js/eventHandlers.js   js/renderer.js      js/chatbot.js
-   (DOM wiring,          (render loop,       (WebLLM AI chat,
-    DOMContentLoaded)     Chart.js,           in-browser LLM)
-                          timeline)
+   (DOM wiring,          (item list,          (WebLLM AI chat,
+    DOMContentLoaded)     stats, badges,       in-browser LLM)
+                          render orchestration)
         │                     │
-   js/modalController.js      │
-   (add/edit/delete modals)   │
+   js/modalController.js  js/chart.js ←── js/timeline.js
+   (add/edit/delete       (Chart.js          (Gantt timeline,
+    modals)                projection)        crosshair state,
+                                              tax breakdown)
         │                     │
         └─────────┬───────────┘
                   │
@@ -179,7 +181,9 @@ Both modes work. The HTML currently loads `js/main.js` as a module. The bundle i
 | `js/calculator.js` | 446 | **Pure calculation engine** — calcProjection, calcItemBalance, calc401kBalance, calcLoanSchedule, calcTax, calcStats, calcItemValue |
 | `js/serializer.js` | 136 | Excel import/export via SheetJS |
 | `js/uiConstants.js` | 42 | TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml |
-| `js/renderer.js` | 624 | **Largest file** — render(), renderItemList(), updateChart(), renderTimeline(), crosshair sync, tax breakdown |
+| `js/renderer.js` | 267 | Item list rendering, stats, badges, empty state, render orchestration |
+| `js/chart.js` | 92 | Chart.js projection chart, crosshair plugin, hover handling |
+| `js/timeline.js` | 290 | Gantt timeline, crosshair sync state, tax breakdown |
 | `js/modalController.js` | 391 | Add/edit/delete item modals, form validation, field group visibility |
 | `js/eventHandlers.js` | 263 | DOMContentLoaded wiring, theme application, sidebar nav, settings panel, import/export |
 | `js/chatbot.js` | 355 | WebLLM integration, AI chat panel, financial context assembly |
@@ -189,24 +193,14 @@ Both modes work. The HTML currently loads `js/main.js` as a module. The bundle i
 
 ---
 
-## Files That Could Be Split
+## Previous Refactoring (completed)
 
-### renderer.js (624 lines) — recommended split
+`renderer.js` was 624 lines handling chart, timeline, item list, stats, and tax UI. It has been split into:
+- `js/renderer.js` (267 lines) — item list, stats, badges, empty state, render orchestration
+- `js/chart.js` (92 lines) — Chart.js projection chart, crosshair plugin
+- `js/timeline.js` (290 lines) — Gantt timeline, crosshair sync, tax breakdown
 
-This is the largest module and handles multiple concerns:
-- **Chart rendering** (`updateChart`, `_handleChartHover`, `_setCrosshairYear`) — could become `js/chart.js`
-- **Timeline/Gantt** (`buildTimelineBars`, `renderTimeline`, `_updateTimelineCrosshair`) — could become `js/timeline.js`
-- **Item list rendering** (`renderItemList`, `toggleItemChart`, `navigateToItem`) — stays in renderer
-- **Stats/badges/tax** (`updateStats`, `updateBadges`, `renderTaxBreakdown`, `renderEmptyState`) — stays in renderer
-
-### modalController.js (391 lines) — acceptable as-is
-Tightly coupled form logic. Splitting would create more complexity than it solves.
-
-### calculator.js (446 lines) — acceptable as-is
-All pure functions with clear boundaries. Could split tax functions into `js/taxCalculator.js` if it grows further.
-
-### styles.css (625 lines) — acceptable as-is
-Single stylesheet for a single-page app. Could split into component files if CSS grows significantly.
+Dependency flow: `timeline.js` owns crosshair state → `chart.js` imports from timeline → `renderer.js` imports from both.
 
 ---
 

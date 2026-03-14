@@ -17,6 +17,8 @@ const files = [
   'js/serializer.js',
   'js/uiConstants.js',
   'js/appState.js',
+  'js/timeline.js',
+  'js/chart.js',
   'js/renderer.js',
   'js/modalController.js',
   'js/eventHandlers.js',

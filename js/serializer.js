@@ -1,5 +1,6 @@
 // =============================================================================
-// Serializer — exportToXlsx(items), importFromXlsx(file)
+// Serializer — Excel import/export via SheetJS (XLSX CDN global)
+// Exports: exportToXlsx, importFromXlsx
 // Depends on: XLSX (global from CDN)
 // =============================================================================
 

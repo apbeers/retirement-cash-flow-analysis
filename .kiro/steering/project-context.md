@@ -23,7 +23,9 @@ inclusion: always
 
 ## Key Files
 - `js/calculator.js` — pure calculation functions (projection, balances, tax, loans)
-- `js/renderer.js` — all DOM rendering, Chart.js, timeline (624 lines, largest file)
+- `js/renderer.js` — item list rendering, stats, badges, render orchestration
+- `js/chart.js` — Chart.js projection chart, crosshair plugin
+- `js/timeline.js` — Gantt timeline, crosshair sync state, tax breakdown
 - `js/modalController.js` — add/edit/delete item modals
 - `js/eventHandlers.js` — DOM event wiring, theme, settings panel
 - `js/chatbot.js` — WebLLM AI chat (Qwen2.5-3B, 4096 token context window)
@@ -35,3 +37,4 @@ inclusion: always
 - Use `formatMoney()` from prettyPrinter.js for dollar amounts
 - CDN dependencies: Bootstrap 5, Chart.js, SheetJS, Bootstrap Icons
 - CI: push → Tests workflow → Deploy to GitHub Pages
+- Each module has a JSDoc header listing exports and dependencies

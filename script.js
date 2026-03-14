@@ -31,11 +31,17 @@ export { TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml } from './js/uiConst
 // App State
 export { state } from './js/appState.js';
 
+// Timeline
+export { buildTimelineBars, renderTimeline, renderTaxBreakdown, _setCrosshairYear, _getCrosshairYear } from './js/timeline.js';
+
+// Chart
+export { updateChart } from './js/chart.js';
+
 // Renderer
 export {
-  renderItemList, renderTaxBreakdown, renderEmptyState,
-  updateBadges, updateStats, updateChart, render,
-  toggleItemChart, buildTimelineBars, renderTimeline, navigateToItem
+  renderItemList, renderEmptyState,
+  updateBadges, updateStats, render,
+  toggleItemChart, navigateToItem
 } from './js/renderer.js';
 
 // Modal Controller

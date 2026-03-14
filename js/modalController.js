@@ -1,6 +1,9 @@
 // =============================================================================
-// ModalController — openAddModal(type), openEditModal(index), closeModal()
-//                   form submit handler, inline delete confirmation
+// Modal Controller — add/edit/delete item modals, form validation
+// Exports: openAddModal, openEditModal, closeModal, _populateCategorySelect,
+//          _updateFieldGroupVisibility, _handleSaveItem, initiateDelete,
+//          confirmDelete, cancelDelete
+// Depends on: constants.js, appState.js, state.js, renderer.js
 // =============================================================================
 
 import { SUBCATEGORIES, ASSET_TYPES, MAX_ITEMS } from './constants.js';
