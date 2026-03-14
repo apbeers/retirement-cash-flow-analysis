@@ -222,6 +222,18 @@ function importFromXlsx(file) {
 }
 
 // =============================================================================
+// Utilities
+// =============================================================================
+
+function _escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// =============================================================================
 // ModalController — openAddModal(type), openEditModal(index), closeModal()
 //                   form submit handler, inline delete confirmation
 // =============================================================================
@@ -236,19 +248,274 @@ const TYPE_LABELS = {
   outflows: 'Outflow'
 };
 
+const TYPE_ICONS = {
+  bank:        'bi-bank',
+  investments: 'bi-bar-chart-line',
+  property:    'bi-house',
+  vehicles:    'bi-car-front',
+  rentals:     'bi-building',
+  inflows:     'bi-arrow-down-circle',
+  outflows:    'bi-arrow-up-circle'
+};
+
+const SECTION_META = {
+  dashboard:   { title: 'Dashboard',      subtitle: 'Overview of your retirement plan' },
+  bank:        { title: 'Bank Accounts',  subtitle: 'Manage your bank and savings accounts' },
+  investments: { title: 'Investments',    subtitle: 'Stocks, ETFs, super, and more' },
+  property:    { title: 'Property',       subtitle: 'Real estate and land holdings' },
+  vehicles:    { title: 'Vehicles',       subtitle: 'Cars, boats, and other vehicles' },
+  rentals:     { title: 'Rentals',        subtitle: 'Rental income properties' },
+  inflows:     { title: 'Inflows',        subtitle: 'Salary, pension, dividends, and other income' },
+  outflows:    { title: 'Outflows',       subtitle: 'Living expenses, mortgage, tax, and more' }
+};
+
 // App state — module-level, initialised from localStorage
 let { items, settings } = loadState();
 
-// Render stubs — will be replaced by task 9/10 implementations
-function render() {
-  if (typeof renderItemList === 'function') renderItemList();
-  if (typeof updateChart === 'function') updateChart();
-  if (typeof updateStats === 'function') updateStats();
-  if (typeof updateBadges === 'function') updateBadges();
-}
+// Renderer module-level state
+let activeSection = 'dashboard';
+let chartInstance = null;
+
+// =============================================================================
+// Renderer — renderItemList(), renderEmptyState(), updateBadges(),
+//             updateStats(), updateChart(), render()
+// =============================================================================
 
 function renderItemList() {
-  // stub — implemented in task 9
+  const listArea = document.getElementById('item-list-area');
+  const statsRow = document.getElementById('stats-row');
+  const chartContainer = document.getElementById('chart-container');
+
+  if (activeSection === 'dashboard') {
+    if (listArea) listArea.style.display = 'none';
+    if (statsRow) statsRow.style.display = '';
+    if (chartContainer) chartContainer.style.display = '';
+    return;
+  }
+
+  // Non-dashboard: show item list, hide stats/chart
+  if (statsRow) statsRow.style.display = 'none';
+  if (chartContainer) chartContainer.style.display = 'none';
+  if (listArea) listArea.style.display = '';
+
+  const filtered = items.filter(item => item.type === activeSection);
+
+  if (!listArea) return;
+
+  if (filtered.length === 0) {
+    renderEmptyState();
+    return;
+  }
+
+  const rows = filtered.map((item) => {
+    // Find the original index in items array for delete targeting
+    const originalIndex = items.indexOf(item);
+    const icon = TYPE_ICONS[item.type] || 'bi-circle';
+    const rateSign = item.rate > 0 ? '+' : '';
+    const meta = item.category + ' · ' + item.startYear + '–' + item.endYear + ' · ' + rateSign + item.rate + '%';
+
+    return '<div class="item-row" data-item-index="' + originalIndex + '">' +
+      '<i class="bi ' + icon + ' item-icon"></i>' +
+      '<div class="flex-grow-1">' +
+        '<div class="item-name">' + _escapeHtml(item.name) + '</div>' +
+        '<div class="item-meta">' + _escapeHtml(meta) + '</div>' +
+      '</div>' +
+      '<div class="item-value">' + formatMoney(item.amount) + '</div>' +
+      '<div class="item-action-area">' +
+        '<button class="btn btn-sm btn-outline-danger" onclick="initiateDelete(' + originalIndex + ')" title="Delete">' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  });
+
+  listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
+}
+
+function renderEmptyState() {
+  const listArea = document.getElementById('item-list-area');
+  if (!listArea) return;
+  const label = TYPE_LABELS[activeSection] || activeSection;
+  listArea.innerHTML =
+    '<div class="empty-state">' +
+      '<i class="bi ' + (TYPE_ICONS[activeSection] || 'bi-inbox') + '"></i>' +
+      '<p>No ' + label + ' items yet.</p>' +
+      '<p class="small">Click "Add ' + label + '" to get started.</p>' +
+    '</div>';
+}
+
+function updateBadges() {
+  for (const type of ALL_TYPES) {
+    const badge = document.getElementById('badge-' + type);
+    if (badge) {
+      badge.textContent = items.filter(item => item.type === type).length;
+    }
+  }
+
+  const addBtn = document.getElementById('btn-add-item');
+  if (!addBtn) return;
+
+  if (items.length >= MAX_ITEMS) {
+    addBtn.disabled = true;
+    // Show warning if not already present
+    let warning = document.getElementById('max-items-warning');
+    if (!warning) {
+      warning = document.createElement('span');
+      warning.id = 'max-items-warning';
+      warning.className = 'badge bg-warning text-dark ms-2';
+      warning.textContent = 'Max items reached';
+      addBtn.parentNode.insertBefore(warning, addBtn.nextSibling);
+    }
+  } else {
+    addBtn.disabled = false;
+    const warning = document.getElementById('max-items-warning');
+    if (warning) warning.remove();
+  }
+}
+
+function updateStats() {
+  const stats = calcStats(items, settings);
+  const totalAssetsEl = document.getElementById('stat-totalAssets');
+  const annualInflowEl = document.getElementById('stat-annualInflow');
+  const annualOutflowEl = document.getElementById('stat-annualOutflow');
+  if (totalAssetsEl) totalAssetsEl.textContent = formatMoney(stats.totalAssets);
+  if (annualInflowEl) annualInflowEl.textContent = formatMoney(stats.annualInflow);
+  if (annualOutflowEl) annualOutflowEl.textContent = formatMoney(stats.annualOutflow);
+}
+
+function updateChart() {
+  try {
+    const canvas = document.getElementById('projectionChart');
+    if (!canvas) return;
+
+    const projection = calcProjection(items, settings);
+    const years = projection.map(p => p.year);
+    const theme = settings.theme || DEFAULT_SETTINGS.theme;
+    const accent = theme.accent || '#58a6ff';
+    const textColor = theme.text || '#e0e0e0';
+    const gridColor = 'rgba(255,255,255,0.1)';
+
+    // Build datasets: net worth + one per type that has ≥1 item
+    const datasets = [];
+
+    // Total Net Worth — solid line
+    datasets.push({
+      label: 'Total Net Worth',
+      data: projection.map(p => p.netWorth),
+      borderColor: accent,
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3
+    });
+
+    // Per-type dashed lines
+    const typeColors = {
+      bank:        '#4fc3f7',
+      investments: '#81c784',
+      property:    '#ffb74d',
+      vehicles:    '#e57373',
+      rentals:     '#ba68c8',
+      inflows:     '#4db6ac',
+      outflows:    '#f06292'
+    };
+
+    for (const type of ALL_TYPES) {
+      if (!items.some(item => item.type === type)) continue;
+      datasets.push({
+        label: TYPE_LABELS[type],
+        data: projection.map(p => p.byType[type]),
+        borderColor: typeColors[type] || '#aaa',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        tension: 0.3
+      });
+    }
+
+    const config = {
+      type: 'line',
+      data: { labels: years, datasets },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: textColor, font: { size: 12 } }
+          },
+          title: {
+            display: !!settings.chartTitle,
+            text: settings.chartTitle || '',
+            color: textColor
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: textColor },
+            grid: { color: gridColor }
+          },
+          y: {
+            ticks: {
+              color: textColor,
+              callback: function(value) { return formatMoney(value); }
+            },
+            grid: { color: gridColor }
+          }
+        }
+      }
+    };
+
+    if (chartInstance) {
+      chartInstance.data = config.data;
+      chartInstance.options = config.options;
+      chartInstance.update();
+    } else {
+      chartInstance = new Chart(canvas, config);
+    }
+  } catch (err) {
+    console.error('Chart render error:', err);
+  }
+}
+
+function render() {
+  updateBadges();
+  renderItemList();
+
+  if (activeSection === 'dashboard') {
+    updateStats();
+    updateChart();
+  }
+
+  // Update section title and subtitle
+  const meta = SECTION_META[activeSection] || { title: activeSection, subtitle: '' };
+  const titleEl = document.getElementById('section-title');
+  const subtitleEl = document.getElementById('section-subtitle');
+  if (titleEl) titleEl.textContent = meta.title;
+  if (subtitleEl) subtitleEl.textContent = meta.subtitle;
+
+  // Show/hide and label the Add button
+  const addBtn = document.getElementById('btn-add-item');
+  const addLabel = document.getElementById('btn-add-label');
+  if (addBtn) {
+    if (activeSection === 'dashboard') {
+      addBtn.classList.add('d-none');
+    } else {
+      addBtn.classList.remove('d-none');
+      if (addLabel) addLabel.textContent = 'Add ' + (TYPE_LABELS[activeSection] || activeSection);
+    }
+  }
+
+  // Update sidebar active state
+  const navLinks = document.querySelectorAll('#sidebar .nav-link[data-section]');
+  navLinks.forEach(link => {
+    if (link.dataset.section === activeSection) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
 }
 
 // --- Task 7.1: openAddModal, openEditModal, closeModal ---
@@ -512,7 +779,17 @@ if (typeof module !== 'undefined') {
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
     STORAGE_KEYS, MAX_ITEMS, loadState, saveItems, saveSettings,
     exportToXlsx, importFromXlsx,
-    TYPE_LABELS, openAddModal, openEditModal, closeModal,
+    TYPE_LABELS, TYPE_ICONS, SECTION_META,
+    openAddModal, openEditModal, closeModal,
     initiateDelete, confirmDelete, cancelDelete,
-    _handleSaveItem, _generateUUID, _showModalError };
+    _handleSaveItem, _generateUUID, _showModalError, _escapeHtml,
+    render, renderItemList, renderEmptyState, updateBadges, updateStats, updateChart,
+    get activeSection() { return activeSection; },
+    set activeSection(v) { activeSection = v; },
+    get chartInstance() { return chartInstance; },
+    get items() { return items; },
+    set items(v) { items = v; },
+    get settings() { return settings; },
+    set settings(v) { settings = v; }
+  };
 }

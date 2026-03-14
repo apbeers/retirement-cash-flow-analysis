@@ -141,8 +141,8 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
 - [x] 8. Checkpoint — item management tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Renderer module — item list, empty state, badges, and section filter
-  - [~] 9.1 Implement `renderItemList()` in `script.js`
+- [x] 9. Renderer module — item list, empty state, badges, and section filter
+  - [x] 9.1 Implement `renderItemList()` in `script.js`
     - Renders rows only for items matching the active section type
     - Each row shows: type icon, name, subcategory, date range, annual rate, `formatMoney(amount)`, delete action
     - _Requirements: 11.1, 11.2, 11.4_
@@ -150,23 +150,23 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Property 17: Section Filter Correctness**
     - **Validates: Requirements 11.4**
     - File: `tests/renderer.test.js`
-  - [~] 9.3 Implement `renderEmptyState()` and `updateBadges()` in `script.js`
+  - [x] 9.3 Implement `renderEmptyState()` and `updateBadges()` in `script.js`
     - Empty state shown when active section has no items
     - Badges show per-type item counts in sidebar
     - Disable "Add" button and show warning badge when `items.length >= MAX_ITEMS`
     - _Requirements: 1.7, 6.2, 6.3, 6.5_
 
-- [ ] 10. Renderer module — chart and stats
-  - [~] 10.1 Implement `updateStats()` in `script.js`
+- [x] 10. Renderer module — chart and stats
+  - [x] 10.1 Implement `updateStats()` in `script.js`
     - Calls `calcStats`, formats values with `formatMoney`, updates the three summary card DOM elements
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [~] 10.2 Implement `updateChart()` in `script.js`
+  - [x] 10.2 Implement `updateChart()` in `script.js`
     - Calls `calcProjection`, builds Chart.js dataset for Total Net Worth (solid line) and one dashed dataset per type that has ≥1 item
     - x-axis: years; y-axis: `formatMoney` tick callback
     - Dark background, high-contrast grid lines and legend text
     - Wrap Chart.js init in try/catch; log error without crashing
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-  - [~] 10.3 Implement master `render()` function in `script.js`
+  - [x] 10.3 Implement master `render()` function in `script.js`
     - Calls `renderItemList()`, `updateChart()`, `updateStats()`, `updateBadges()` in sequence
     - _Requirements: 3.6, 4.3, 5.4, 6.3_
 
