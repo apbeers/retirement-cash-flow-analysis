@@ -330,6 +330,21 @@ body {
   filter: brightness(1.2);
 }
 
+/* Crosshair sync */
+.timeline-crosshair-summary {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.6);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 20;
+}
+
 .timeline-marker {
   position: absolute;
   top: 0;

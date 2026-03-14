@@ -791,6 +791,9 @@ const state = {
 var _itemCharts = {};
 
 var TYPE_COLORS = { bank:'#4fc3f7', investments:'#81c784', property:'#ffb74d', vehicles:'#e57373', rentals:'#ba68c8', inflows:'#4db6ac', outflows:'#f06292' };
+
+// Crosshair state shared between chart and timeline
+var _crosshairYear = null;
 function renderItemList() {
   const listArea = document.getElementById('item-list-area');
   const statsRow = document.getElementById('stats-row');
@@ -1063,6 +1066,25 @@ function renderTimeline() {
   }
 
   container.innerHTML = '<h6 class="mb-2"><i class="bi bi-calendar-range me-2"></i>Cash Flow Timeline</h6><div class="timeline-wrapper"><div class="timeline-axis">' + axisHtml + '</div>' + lanesHtml + '</div>';
+
+  // Timeline → chart crosshair sync
+  var wrapper = container.querySelector('.timeline-wrapper');
+  if (wrapper) {
+    wrapper.addEventListener('mousemove', function(e) {
+      var barArea = wrapper.querySelector('.timeline-bar-area');
+      if (!barArea) return;
+      var rect = barArea.getBoundingClientRect();
+      var relX = e.clientX - rect.left;
+      if (relX < 0 || relX > rect.width) { _setCrosshairYear(null); return; }
+      var frac = relX / rect.width;
+      var year = Math.round(projStart + frac * totalYears);
+      year = Math.max(projStart, Math.min(projEnd, year));
+      _setCrosshairYear(year);
+    });
+    wrapper.addEventListener('mouseleave', function() {
+      _setCrosshairYear(null);
+    });
+  }
 }
 function renderTaxBreakdown() {
   const panel = document.getElementById('taxBreakdownPanel');
@@ -1127,6 +1149,159 @@ function updateStats() {
   if (e2) e2.textContent = formatMoney(s.annualInflow);
   if (e3) e3.textContent = formatMoney(s.annualOutflow);
 }
+
+// Crosshair plugin for Chart.js — draws a vertical line at the hovered x position
+var _crosshairPlugin = {
+  id: 'crosshairSync',
+  afterDraw: function(chart) {
+    if (_crosshairYear == null) return;
+    var xScale = chart.scales.x;
+    if (!xScale) return;
+    var labels = chart.data.labels;
+    var idx = labels.indexOf(_crosshairYear);
+    if (idx < 0) return;
+    var x = xScale.getPixelForValue(idx);
+    var ctx = chart.ctx;
+    var yTop = chart.chartArea.top;
+    var yBottom = chart.chartArea.bottom;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, yTop);
+    ctx.lineTo(x, yBottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+function _handleChartHover(evt, chart) {
+  var xScale = chart.scales.x;
+  if (!xScale || !evt.native) { _setCrosshairYear(null); return; }
+  var rect = chart.canvas.getBoundingClientRect();
+  var mouseX = evt.native.clientX - rect.left;
+  if (mouseX < chart.chartArea.left || mouseX > chart.chartArea.right) { _setCrosshairYear(null); return; }
+  var idx = xScale.getValueForPixel(mouseX);
+  var labels = chart.data.labels;
+  var yearIdx = Math.round(idx);
+  if (yearIdx >= 0 && yearIdx < labels.length) {
+    _setCrosshairYear(labels[yearIdx]);
+  } else {
+    _setCrosshairYear(null);
+  }
+}
+
+function _setCrosshairYear(year) {
+  if (_crosshairYear === year) return;
+  _crosshairYear = year;
+  _updateTimelineCrosshair();
+  if (state.chartInstance) state.chartInstance.draw();
+}
+
+function _updateTimelineCrosshair() {
+  var container = document.getElementById('timeline-container');
+  if (!container) return;
+
+  // Remove old crosshair elements
+  var oldLine = container.querySelector('.timeline-crosshair');
+  if (oldLine) oldLine.remove();
+  var oldSummary = container.querySelector('.timeline-crosshair-summary');
+  if (oldSummary) oldSummary.remove();
+
+  // Reset bar highlights
+  var allBars = container.querySelectorAll('.timeline-bar');
+  for (var i = 0; i < allBars.length; i++) {
+    allBars[i].style.opacity = '';
+  }
+
+  if (_crosshairYear == null) return;
+
+  var wrapper = container.querySelector('.timeline-wrapper');
+  if (!wrapper) return;
+
+  var projStart = state.settings.startYear;
+  var projEnd = projStart + state.settings.projectionYears - 1;
+  var totalYears = projEnd - projStart + 1;
+  if (totalYears <= 0) return;
+
+  var pct = (_crosshairYear - projStart + 0.5) / totalYears * 100;
+  if (pct < 0 || pct > 100) return;
+
+  // Draw vertical line on timeline
+  var line = document.createElement('div');
+  line.className = 'timeline-crosshair';
+  line.style.left = 'calc(130px + ' + pct + '% * (100% - 130px) / 100%)';
+  // Use the bar-area width calculation: label is 130px, rest is bar area
+  var barAreas = container.querySelectorAll('.timeline-bar-area');
+  if (barAreas.length > 0) {
+    var areaRect = barAreas[0].getBoundingClientRect();
+    var wrapperRect = wrapper.getBoundingClientRect();
+    var areaLeft = areaRect.left - wrapperRect.left;
+    var areaWidth = areaRect.width;
+    line.style.left = (areaLeft + pct / 100 * areaWidth) + 'px';
+  }
+  line.style.position = 'absolute';
+  line.style.top = '0';
+  line.style.bottom = '0';
+  line.style.width = '1px';
+  line.style.background = 'rgba(255,255,255,0.4)';
+  line.style.pointerEvents = 'none';
+  line.style.zIndex = '10';
+  wrapper.style.position = 'relative';
+  wrapper.appendChild(line);
+
+  // Highlight active bars and compute monthly net
+  var monthlyNet = 0;
+  var lanes = container.querySelectorAll('.timeline-lane');
+  var bars = buildTimelineBars(state.items, state.settings);
+  for (var j = 0; j < bars.length; j++) {
+    var b = bars[j];
+    var barEl = lanes[j] ? lanes[j].querySelector('.timeline-bar') : null;
+    if (!barEl) continue;
+
+    var isActive = _crosshairYear >= b.startYear && _crosshairYear <= b.endYear;
+    barEl.style.opacity = isActive ? '1' : '0.3';
+
+    if (isActive) {
+      var item = state.items[b.itemIndex];
+      if (!item) continue;
+
+      // Contributions (if still active at this year)
+      if (item.contributionAmount > 0 && (item.contributionEndYear == null || _crosshairYear <= item.contributionEndYear)) {
+        var contribMonthly = item.contributionFrequency === 'monthly' ? item.contributionAmount : item.contributionAmount / 12;
+        monthlyNet += contribMonthly;
+      }
+      // Withdrawals
+      if (item.withdrawalAmount > 0) {
+        var withdrawMonthly = item.withdrawalFrequency === 'monthly' ? item.withdrawalAmount : item.withdrawalAmount / 12;
+        monthlyNet -= withdrawMonthly;
+      }
+      // Inflows
+      if (item.type === 'inflows') {
+        monthlyNet += item.amount / 12;
+      }
+      // Outflows
+      if (item.type === 'outflows') {
+        monthlyNet -= item.amount / 12;
+      }
+      // Loan payments
+      if (item.loan && item.loan.monthlyPayment > 0) {
+        var payoffYear = b.loanPayoffYear;
+        if (payoffYear == null || _crosshairYear <= payoffYear) {
+          monthlyNet -= (item.loan.monthlyPayment + (item.loan.extraMonthlyPayment || 0));
+        }
+      }
+    }
+  }
+
+  // Show summary
+  var summary = document.createElement('div');
+  summary.className = 'timeline-crosshair-summary';
+  var sign = monthlyNet >= 0 ? '+' : '';
+  summary.textContent = _crosshairYear + ' \u00B7 Net: ' + sign + formatMoney(Math.round(monthlyNet)) + '/mo';
+  summary.style.color = monthlyNet >= 0 ? '#81c784' : '#f06292';
+  container.appendChild(summary);
+}
 function updateChart() {
   try {
     const canvas = document.getElementById('projectionChart');
@@ -1151,9 +1326,14 @@ function updateChart() {
     if (state.items.some(i => i.category === 'Roth 401(k)')) {
       datasets.push({ label: 'Roth 401(k)', data: proj.map(p => p.byType.roth401k || 0), borderColor: '#aed581', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [6,3], pointRadius: 0, tension: 0.3 });
     }
-    const cfg = { type:'line', data:{labels:years,datasets}, options:{responsive:true,animation:false,plugins:{legend:{display:true,labels:{color:textColor,font:{size:12}}},title:{display:!!state.settings.chartTitle,text:state.settings.chartTitle||'',color:textColor}},scales:{x:{ticks:{color:textColor},grid:{color:gridColor}},y:{ticks:{color:textColor,callback:function(v){return formatMoney(v);}},grid:{color:gridColor}}}} };
-    if (state.chartInstance) { state.chartInstance.data = cfg.data; state.chartInstance.options = cfg.options; state.chartInstance.update(); }
+    const cfg = { type:'line', data:{labels:years,datasets}, options:{responsive:true,animation:false,plugins:{legend:{display:true,labels:{color:textColor,font:{size:12}}},title:{display:!!state.settings.chartTitle,text:state.settings.chartTitle||'',color:textColor},tooltip:{mode:'index',intersect:false}},scales:{x:{ticks:{color:textColor},grid:{color:gridColor}},y:{ticks:{color:textColor,callback:function(v){return formatMoney(v);}},grid:{color:gridColor}}},onHover:function(evt,_el,chart){_handleChartHover(evt,chart);}},plugins:[_crosshairPlugin] };
+    if (state.chartInstance) { state.chartInstance.data = cfg.data; state.chartInstance.options = cfg.options; state.chartInstance.config.plugins = [_crosshairPlugin]; state.chartInstance.update(); }
     else { state.chartInstance = new Chart(canvas, cfg); }
+    // Clear crosshair when mouse leaves chart
+    if (!canvas._crosshairLeaveAttached) {
+      canvas.addEventListener('mouseleave', function() { _setCrosshairYear(null); });
+      canvas._crosshairLeaveAttached = true;
+    }
   } catch (err) { console.error('Chart render error:', err); }
 }
 function navigateToItem(itemIndex) {
