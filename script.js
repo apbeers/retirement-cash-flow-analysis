@@ -18,12 +18,19 @@ const DEFAULT_SETTINGS = {
     accent: '#58a6ff',
     fontFamily: 'system-ui, sans-serif',
     fontSize: 16
+  },
+  tax: {
+    filingStatus: 'single',
+    birthYear: 1970,
+    annualSocialSecurityBenefit: 0,
+    socialSecurityStartYear: null,
+    bracketInflationRate: 2.5
   }
 };
 
 const SUBCATEGORIES = {
   bank:        ['Checking', 'Savings', 'Term Deposit'],
-  investments: ['Stocks', 'ETFs', 'Superannuation', 'Bonds', 'Crypto'],
+  investments: ['Stocks', 'ETFs', 'Superannuation', 'Bonds', 'Crypto', 'Traditional 401(k)', 'Roth 401(k)'],
   property:    ['Primary Home', 'Investment Property', 'Land', 'Commercial'],
   vehicles:    ['Car', 'Boat', 'Motorcycle'],
   rentals:     ['Residential', 'Holiday', 'Commercial'],
@@ -36,13 +43,54 @@ const CASHFLOW_TYPES = ['inflows', 'outflows'];
 const ALL_TYPES = [...ASSET_TYPES, ...CASHFLOW_TYPES];
 const MAX_ITEMS = 999;
 
+const TAX_BRACKETS_2025 = {
+  single: {
+    ordinary: [
+      { rate: 0.10, upTo: 11925 },
+      { rate: 0.12, upTo: 48475 },
+      { rate: 0.22, upTo: 103350 },
+      { rate: 0.24, upTo: 197300 },
+      { rate: 0.32, upTo: 250525 },
+      { rate: 0.35, upTo: 626350 },
+      { rate: 0.37, upTo: Infinity }
+    ],
+    ltcg: [
+      { rate: 0.00, upTo: 48350 },
+      { rate: 0.15, upTo: 533400 },
+      { rate: 0.20, upTo: Infinity }
+    ],
+    standardDeduction: 15000,
+    ssTaxThresholdLow: 25000,
+    ssTaxThresholdHigh: 34000
+  },
+  married_filing_jointly: {
+    ordinary: [
+      { rate: 0.10, upTo: 23850 },
+      { rate: 0.12, upTo: 96950 },
+      { rate: 0.22, upTo: 206700 },
+      { rate: 0.24, upTo: 394600 },
+      { rate: 0.32, upTo: 501050 },
+      { rate: 0.35, upTo: 751600 },
+      { rate: 0.37, upTo: Infinity }
+    ],
+    ltcg: [
+      { rate: 0.00, upTo: 96700 },
+      { rate: 0.15, upTo: 600050 },
+      { rate: 0.20, upTo: Infinity }
+    ],
+    standardDeduction: 30000,
+    ssTaxThresholdLow: 32000,
+    ssTaxThresholdHigh: 44000
+  }
+};
+
 // =============================================================================
 // State — loadState(), saveItems(), saveSettings()
 // =============================================================================
 
 function loadState() {
   let items = [];
-  let settings = DEFAULT_SETTINGS;
+  let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 
   try {
     const rawItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
@@ -57,11 +105,16 @@ function loadState() {
   try {
     const rawSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (rawSettings !== null) {
-      settings = JSON.parse(rawSettings);
+      const parsed = JSON.parse(rawSettings);
+      settings = Object.assign({}, DEFAULT_SETTINGS, parsed);
+      // Merge tax sub-object with defaults to handle missing/corrupt fields
+      settings.tax = Object.assign({}, DEFAULT_SETTINGS.tax, parsed.tax || {});
+      // Merge theme sub-object with defaults
+      settings.theme = Object.assign({}, DEFAULT_SETTINGS.theme, parsed.theme || {});
     }
   } catch (err) {
     console.error('Failed to parse settings from localStorage:', err);
-    settings = DEFAULT_SETTINGS;
+    settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
   }
 
   return { items, settings };
@@ -1034,7 +1087,7 @@ if (typeof document !== 'undefined') {
 if (typeof module !== 'undefined') {
   module.exports = { formatMoney, calcItemValue, calcProjection, calcStats,
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
-    STORAGE_KEYS, MAX_ITEMS, loadState, saveItems, saveSettings,
+    STORAGE_KEYS, MAX_ITEMS, TAX_BRACKETS_2025, loadState, saveItems, saveSettings,
     exportToXlsx, importFromXlsx,
     TYPE_LABELS, TYPE_ICONS, SECTION_META,
     openAddModal, openEditModal, closeModal,
