@@ -4,7 +4,7 @@
 // =============================================================================
 
 import * as fc from 'fast-check';
-import { calcItemValue, calcProjection, calcStats, ASSET_TYPES } from '../script.js';
+import { calcItemValue, calcItemBalance, calcLoanSchedule, calcProjection, calcStats, ASSET_TYPES } from '../script.js';
 
 // --- Arbitraries ---
 
@@ -56,6 +56,136 @@ describe('calcItemValue', () => {
   it('handles zero rate', () => {
     const item = { amount: 3000, rate: 0, startYear: 2025, endYear: 2030 };
     expect(calcItemValue(item, 2028)).toBeCloseTo(3000);
+  });
+});
+
+// --- calcItemBalance unit tests ---
+
+describe('calcItemBalance', () => {
+  it('returns 0 when year < startYear', () => {
+    const item = { id: 'a', amount: 1000, rate: 5, startYear: 2025, endYear: 2030 };
+    const cache = {};
+    expect(calcItemBalance(item, 2024, cache)).toBe(0);
+  });
+
+  it('returns 0 when year > endYear', () => {
+    const item = { id: 'b', amount: 1000, rate: 5, startYear: 2025, endYear: 2030 };
+    const cache = {};
+    expect(calcItemBalance(item, 2031, cache)).toBe(0);
+  });
+
+  it('returns compound growth at startYear (seed * (1 + rate/100))', () => {
+    const item = { id: 'c', amount: 1000, rate: 10, startYear: 2025, endYear: 2030 };
+    const cache = {};
+    // balance(2025) = (1000 + 0 - 0) * 1.10 = 1100
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(1100);
+  });
+
+  it('reduces to compound growth when no contribution/withdrawal', () => {
+    const item = { id: 'd', amount: 1000, rate: 10, startYear: 2025, endYear: 2030 };
+    const cache = {};
+    // year 2025: 1000 * 1.1 = 1100
+    // year 2026: 1100 * 1.1 = 1210
+    // year 2027: 1210 * 1.1 = 1331
+    expect(calcItemBalance(item, 2027, cache)).toBeCloseTo(1331);
+  });
+
+  it('applies monthly contribution correctly', () => {
+    const item = {
+      id: 'e', amount: 10000, rate: 0, startYear: 2025, endYear: 2030,
+      contributionAmount: 100, contributionFrequency: 'monthly'
+    };
+    const cache = {};
+    // year 2025: (10000 + 1200) * 1.0 = 11200
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(11200);
+    // year 2026: (11200 + 1200) * 1.0 = 12400
+    expect(calcItemBalance(item, 2026, cache)).toBeCloseTo(12400);
+  });
+
+  it('applies annual contribution correctly', () => {
+    const item = {
+      id: 'f', amount: 10000, rate: 0, startYear: 2025, endYear: 2030,
+      contributionAmount: 5000, contributionFrequency: 'annual'
+    };
+    const cache = {};
+    // year 2025: (10000 + 5000) * 1.0 = 15000
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(15000);
+  });
+
+  it('applies monthly withdrawal correctly', () => {
+    const item = {
+      id: 'g', amount: 50000, rate: 0, startYear: 2025, endYear: 2030,
+      withdrawalAmount: 1000, withdrawalFrequency: 'monthly'
+    };
+    const cache = {};
+    // year 2025: (50000 - 12000) * 1.0 = 38000
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(38000);
+  });
+
+  it('applies annual withdrawal correctly', () => {
+    const item = {
+      id: 'h', amount: 50000, rate: 0, startYear: 2025, endYear: 2030,
+      withdrawalAmount: 20000, withdrawalFrequency: 'annual'
+    };
+    const cache = {};
+    // year 2025: (50000 - 20000) * 1.0 = 30000
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(30000);
+  });
+
+  it('clamps balance to zero when withdrawal exceeds balance', () => {
+    const item = {
+      id: 'i', amount: 5000, rate: 0, startYear: 2025, endYear: 2030,
+      withdrawalAmount: 10000, withdrawalFrequency: 'annual'
+    };
+    const cache = {};
+    // year 2025: max(0, (5000 - 10000) * 1.0) = 0
+    expect(calcItemBalance(item, 2025, cache)).toBe(0);
+    // year 2026: max(0, (0 - 10000) * 1.0) = 0
+    expect(calcItemBalance(item, 2026, cache)).toBe(0);
+  });
+
+  it('applies both contribution and withdrawal in the same year', () => {
+    const item = {
+      id: 'j', amount: 10000, rate: 5, startYear: 2025, endYear: 2030,
+      contributionAmount: 500, contributionFrequency: 'monthly',
+      withdrawalAmount: 200, withdrawalFrequency: 'monthly'
+    };
+    const cache = {};
+    // annualContrib = 6000, annualWithdraw = 2400
+    // year 2025: (10000 + 6000 - 2400) * 1.05 = 13600 * 1.05 = 14280
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(14280);
+  });
+
+  it('handles endYear: null with projectionEndYear', () => {
+    const item = {
+      id: 'k', amount: 1000, rate: 0, startYear: 2025, endYear: null,
+      contributionAmount: 1000, contributionFrequency: 'annual'
+    };
+    const cache = {};
+    // Should be active through projectionEndYear = 2030
+    expect(calcItemBalance(item, 2030, cache, 2030)).toBeCloseTo(7000);
+    // Should return 0 after projectionEndYear
+    expect(calcItemBalance(item, 2031, cache, 2030)).toBe(0);
+  });
+
+  it('seeds balanceCache correctly', () => {
+    const item = { id: 'l', amount: 5000, rate: 10, startYear: 2025, endYear: 2030 };
+    const cache = {};
+    calcItemBalance(item, 2025, cache);
+    expect(cache['l'][2024]).toBe(5000);
+    expect(cache['l'][2025]).toBeCloseTo(5500);
+  });
+
+  it('contributions compound over multiple years with growth rate', () => {
+    const item = {
+      id: 'm', amount: 10000, rate: 10, startYear: 2025, endYear: 2030,
+      contributionAmount: 1000, contributionFrequency: 'annual'
+    };
+    const cache = {};
+    // year 2025: (10000 + 1000) * 1.10 = 12100
+    // year 2026: (12100 + 1000) * 1.10 = 14410
+    expect(calcItemBalance(item, 2025, cache)).toBeCloseTo(12100);
+    expect(calcItemBalance(item, 2026, cache)).toBeCloseTo(14410);
   });
 });
 
@@ -215,5 +345,170 @@ describe('P11: calcStats totals', () => {
         expect(stats.annualOutflow).toBeCloseTo(expectedOutflow, 5);
       })
     );
+  });
+});
+
+// --- calcLoanSchedule unit tests ---
+
+describe('calcLoanSchedule', () => {
+  it('returns correct number of years for the projection period', () => {
+    const loan = {
+      loanAmount: 200000, annualInterestRate: 6, monthlyPayment: 1199.10,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2029);
+    expect(schedule).toHaveLength(5);
+    expect(schedule[0].year).toBe(2025);
+    expect(schedule[4].year).toBe(2029);
+  });
+
+  it('opening balance of first year equals loan amount', () => {
+    const loan = {
+      loanAmount: 100000, annualInterestRate: 5, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    expect(schedule[0].openingBalance).toBe(100000);
+  });
+
+  it('balance is non-increasing year over year', () => {
+    const loan = {
+      loanAmount: 200000, annualInterestRate: 6, monthlyPayment: 1500,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2040);
+    for (let i = 1; i < schedule.length; i++) {
+      expect(schedule[i].closingBalance).toBeLessThanOrEqual(schedule[i - 1].closingBalance);
+    }
+  });
+
+  it('balance never goes below zero', () => {
+    const loan = {
+      loanAmount: 200000, annualInterestRate: 6, monthlyPayment: 1500,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2060);
+    for (const entry of schedule) {
+      expect(entry.closingBalance).toBeGreaterThanOrEqual(0);
+      expect(entry.openingBalance).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('known amortisation scenario: $100k at 6% with $1000/mo payment', () => {
+    // Monthly rate = 0.5%, first month interest = $500, principal = $500
+    const loan = {
+      loanAmount: 100000, annualInterestRate: 6, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2040);
+
+    // Year 1: manually compute 12 months
+    let balance = 100000;
+    let yr1Principal = 0;
+    let yr1Interest = 0;
+    for (let m = 0; m < 12; m++) {
+      const interest = balance * 0.005;
+      const principal = Math.min(1000 - interest, balance);
+      balance = Math.max(0, balance - principal);
+      yr1Principal += principal;
+      yr1Interest += interest;
+    }
+    expect(schedule[0].principalPaid).toBeCloseTo(yr1Principal, 2);
+    expect(schedule[0].interestPaid).toBeCloseTo(yr1Interest, 2);
+    expect(schedule[0].closingBalance).toBeCloseTo(balance, 2);
+  });
+
+  it('extra monthly payment accelerates payoff', () => {
+    const loanBase = {
+      loanAmount: 100000, annualInterestRate: 6, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const loanExtra = {
+      loanAmount: 100000, annualInterestRate: 6, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 500
+    };
+    const schedBase = calcLoanSchedule(loanBase, 2025, 2060);
+    const schedExtra = calcLoanSchedule(loanExtra, 2025, 2060);
+
+    // Extra payments should result in lower or equal closing balance each year
+    for (let i = 0; i < schedBase.length; i++) {
+      expect(schedExtra[i].closingBalance).toBeLessThanOrEqual(schedBase[i].closingBalance + 0.01);
+    }
+
+    // Extra payments should pay off sooner
+    const basePayoff = schedBase.findIndex(e => e.closingBalance === 0);
+    const extraPayoff = schedExtra.findIndex(e => e.closingBalance === 0);
+    expect(extraPayoff).toBeLessThan(basePayoff);
+  });
+
+  it('handles zero interest rate', () => {
+    const loan = {
+      loanAmount: 12000, annualInterestRate: 0, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    // At $1000/mo with 0% interest, $12000 is paid off in exactly 1 year
+    expect(schedule[0].closingBalance).toBe(0);
+    expect(schedule[0].principalPaid).toBe(12000);
+    expect(schedule[0].interestPaid).toBe(0);
+    expect(schedule[1].openingBalance).toBe(0);
+  });
+
+  it('handles payment larger than balance (early payoff)', () => {
+    const loan = {
+      loanAmount: 5000, annualInterestRate: 6, monthlyPayment: 3000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    // Should pay off within first year
+    expect(schedule[0].closingBalance).toBe(0);
+    // Principal paid should equal loan amount
+    expect(schedule[0].principalPaid).toBeCloseTo(5000, 2);
+    // Remaining years should be zero
+    for (let i = 1; i < schedule.length; i++) {
+      expect(schedule[i].openingBalance).toBe(0);
+      expect(schedule[i].closingBalance).toBe(0);
+      expect(schedule[i].principalPaid).toBe(0);
+      expect(schedule[i].interestPaid).toBe(0);
+    }
+  });
+
+  it('escrow and property tax do not reduce loan balance', () => {
+    const loanNoEscrow = {
+      loanAmount: 200000, annualInterestRate: 6, monthlyPayment: 1500,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const loanWithEscrow = {
+      loanAmount: 200000, annualInterestRate: 6, monthlyPayment: 1500,
+      escrowMonthly: 300, propertyTaxAnnual: 2400, extraMonthlyPayment: 0
+    };
+    const schedNoEscrow = calcLoanSchedule(loanNoEscrow, 2025, 2040);
+    const schedWithEscrow = calcLoanSchedule(loanWithEscrow, 2025, 2040);
+
+    // Loan balance trajectory must be identical
+    for (let i = 0; i < schedNoEscrow.length; i++) {
+      expect(schedWithEscrow[i].closingBalance).toBeCloseTo(schedNoEscrow[i].closingBalance, 2);
+      expect(schedWithEscrow[i].principalPaid).toBeCloseTo(schedNoEscrow[i].principalPaid, 2);
+      expect(schedWithEscrow[i].interestPaid).toBeCloseTo(schedNoEscrow[i].interestPaid, 2);
+    }
+
+    // But escrow should be tracked
+    expect(schedWithEscrow[0].escrowPaid).toBeCloseTo(300 * 12 + 2400, 2);
+    expect(schedNoEscrow[0].escrowPaid).toBe(0);
+  });
+
+  it('loan already paid off returns all-zero schedule', () => {
+    const loan = {
+      loanAmount: 0, annualInterestRate: 6, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2027);
+    expect(schedule).toHaveLength(3);
+    for (const entry of schedule) {
+      expect(entry.openingBalance).toBe(0);
+      expect(entry.closingBalance).toBe(0);
+      expect(entry.principalPaid).toBe(0);
+      expect(entry.interestPaid).toBe(0);
+    }
   });
 });

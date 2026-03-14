@@ -21,7 +21,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - _Requirements: 6.4, 6.5, 6.7, 11.3, 11.18_
 
 - [ ] 2. Implement balance-based projection with contributions and withdrawals
-  - [~] 2.1 Implement `calcItemBalance(item, year, balanceCache)` in `script.js`
+  - [x] 2.1 Implement `calcItemBalance(item, year, balanceCache)` in `script.js`
     - Seed `balanceCache[item.id][startYear - 1] = item.amount`
     - For each year: `balance(y) = max(0, (balance(y-1) + annualContrib - annualWithdraw) * (1 + rate/100))`
     - Annual contribution = `contributionAmount * 12` (monthly) or `contributionAmount` (annual), default 0
@@ -39,7 +39,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - File: `tests/calculator.test.js`
 
 - [ ] 3. Implement loan amortisation
-  - [~] 3.1 Implement `calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear)` in `script.js`
+  - [x] 3.1 Implement `calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear)` in `script.js`
     - Monthly simulation: `interestCharge = balance * monthlyRate`, `principalCharge = min(totalPayment - interestCharge, balance)`, `balance = max(0, balance - principalCharge)`
     - Aggregate per year: sum principalPaid, interestPaid, escrowPaid; record closingBalance
     - Stop payments when balance reaches zero

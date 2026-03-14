@@ -151,6 +151,124 @@ function calcItemValue(item, year) {
   return item.amount * Math.pow(1 + item.rate / 100, year - item.startYear);
 }
 
+function calcItemBalance(item, year, balanceCache, projectionEndYear) {
+  var startYear = item.startYear;
+  var effectiveEndYear = item.endYear == null ? projectionEndYear : item.endYear;
+
+  // Return 0 for years outside the active range
+  if (year < startYear || (effectiveEndYear != null && year > effectiveEndYear)) return 0;
+
+  // Ensure cache structure exists for this item
+  if (!balanceCache[item.id]) {
+    balanceCache[item.id] = {};
+  }
+
+  var cache = balanceCache[item.id];
+
+  // Seed the balance at startYear - 1
+  if (cache[startYear - 1] === undefined) {
+    cache[startYear - 1] = item.amount;
+  }
+
+  // Fill cache forward from the earliest missing year up to the requested year
+  for (var y = startYear; y <= year; y++) {
+    if (cache[y] !== undefined) continue;
+
+    // If this year is outside the active range, balance is 0
+    if (effectiveEndYear != null && y > effectiveEndYear) {
+      cache[y] = 0;
+      continue;
+    }
+
+    var prevBalance = cache[y - 1];
+    if (prevBalance === undefined) {
+      prevBalance = 0;
+    }
+
+    var annualContrib = 0;
+    if (item.contributionAmount != null && item.contributionAmount > 0) {
+      annualContrib = item.contributionFrequency === 'monthly'
+        ? item.contributionAmount * 12
+        : item.contributionAmount;
+    }
+
+    var annualWithdraw = 0;
+    if (item.withdrawalAmount != null && item.withdrawalAmount > 0) {
+      annualWithdraw = item.withdrawalFrequency === 'monthly'
+        ? item.withdrawalAmount * 12
+        : item.withdrawalAmount;
+    }
+
+    var balance = (prevBalance + annualContrib - annualWithdraw) * (1 + item.rate / 100);
+    cache[y] = Math.max(0, balance);
+  }
+
+  return cache[year];
+}
+
+function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
+  var loanAmount = loanConfig.loanAmount || 0;
+  var annualInterestRate = loanConfig.annualInterestRate || 0;
+  var monthlyPayment = loanConfig.monthlyPayment || 0;
+  var escrowMonthly = loanConfig.escrowMonthly || 0;
+  var propertyTaxAnnual = loanConfig.propertyTaxAnnual || 0;
+  var extraMonthlyPayment = loanConfig.extraMonthlyPayment || 0;
+
+  var monthlyRate = annualInterestRate / 12 / 100;
+  var totalPayment = monthlyPayment + extraMonthlyPayment;
+  var balance = loanAmount;
+  var schedule = [];
+
+  for (var year = itemStartYear; year <= projectionEndYear; year++) {
+    var openingBalance = balance;
+    var yearPrincipal = 0;
+    var yearInterest = 0;
+    var yearEscrow = 0;
+
+    for (var m = 0; m < 12; m++) {
+      if (balance <= 0) break;
+
+      var interestCharge = balance * monthlyRate;
+      var principalCharge = Math.min(totalPayment - interestCharge, balance);
+      if (principalCharge < 0) principalCharge = 0;
+
+      balance = Math.max(0, balance - principalCharge);
+      yearPrincipal += principalCharge;
+      yearInterest += interestCharge;
+      yearEscrow += escrowMonthly;
+    }
+
+    // Add property tax to escrow for the year
+    yearEscrow += propertyTaxAnnual;
+
+    schedule.push({
+      year: year,
+      openingBalance: openingBalance,
+      principalPaid: yearPrincipal,
+      interestPaid: yearInterest,
+      escrowPaid: yearEscrow,
+      closingBalance: balance
+    });
+
+    if (balance <= 0) {
+      // Fill remaining years with zero-balance entries
+      for (var ry = year + 1; ry <= projectionEndYear; ry++) {
+        schedule.push({
+          year: ry,
+          openingBalance: 0,
+          principalPaid: 0,
+          interestPaid: 0,
+          escrowPaid: 0,
+          closingBalance: 0
+        });
+      }
+      break;
+    }
+  }
+
+  return schedule;
+}
+
 function calcProjection(items, settings) {
   const result = [];
   const endYear = settings.startYear + settings.projectionYears - 1;
@@ -1085,7 +1203,7 @@ if (typeof document !== 'undefined') {
 // =============================================================================
 
 if (typeof module !== 'undefined') {
-  module.exports = { formatMoney, calcItemValue, calcProjection, calcStats,
+  module.exports = { formatMoney, calcItemValue, calcItemBalance, calcLoanSchedule, calcProjection, calcStats,
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
     STORAGE_KEYS, MAX_ITEMS, TAX_BRACKETS_2025, loadState, saveItems, saveSettings,
     exportToXlsx, importFromXlsx,
