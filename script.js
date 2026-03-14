@@ -47,3 +47,6 @@ export {
 
 // Event Handlers
 export { applyTheme } from './js/eventHandlers.js';
+
+// Chatbot
+export { toggleChatPanel, sendChatMessage, handleChatKeydown, checkWebGPU, assembleFinancialContext } from './js/chatbot.js';

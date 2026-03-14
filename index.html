@@ -426,6 +426,22 @@
   </div>
 </div>
 
+<!-- Chatbot toggle button -->
+<button id="chatbot-toggle" class="btn btn-accent" onclick="toggleChatPanel()" title="Chat with AI about your plan" aria-label="Toggle AI chatbot"><i class="bi bi-chat-dots-fill"></i></button>
+
+<!-- Chatbot panel -->
+<div id="chatbot-panel" style="display:none" role="complementary" aria-label="AI Chatbot">
+  <div id="chatbot-header">
+    <span><i class="bi bi-robot me-2"></i>AI Assistant</span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="toggleChatPanel()" aria-label="Close chatbot"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div id="chatbot-messages" aria-live="polite"></div>
+  <div id="chatbot-input-area">
+    <input type="text" id="chatbot-input" class="form-control" placeholder="Ask about your plan..." disabled onkeydown="handleChatKeydown(event)" aria-label="Chat message input">
+    <button id="chatbot-send" class="btn btn-accent" onclick="sendChatMessage()" disabled aria-label="Send message"><i class="bi bi-send-fill"></i></button>
+  </div>
+</div>
+
 <!-- Bootstrap 5 JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Chart.js -->

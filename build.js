@@ -20,6 +20,7 @@ const files = [
   'js/renderer.js',
   'js/modalController.js',
   'js/eventHandlers.js',
+  'js/chatbot.js',
 ];
 
 function stripImportsExports(code) {
@@ -50,6 +51,9 @@ bundle += 'window.cancelDelete = cancelDelete;\n';
 bundle += 'window.openEditModal = openEditModal;\n';
 bundle += 'window.toggleItemChart = toggleItemChart;\n';
 bundle += 'window.navigateToItem = navigateToItem;\n';
+bundle += 'window.toggleChatPanel = toggleChatPanel;\n';
+bundle += 'window.sendChatMessage = sendChatMessage;\n';
+bundle += 'window.handleChatKeydown = handleChatKeydown;\n';
 
 bundle += '\n})();\n';
 
