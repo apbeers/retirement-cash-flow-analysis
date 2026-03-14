@@ -206,6 +206,75 @@ function calcItemBalance(item, year, balanceCache, projectionEndYear) {
   return cache[year];
 }
 
+function calc401kBalance(item, year, balanceCache, projectionEndYear) {
+  var startYear = item.startYear;
+  var effectiveEndYear = item.endYear == null ? projectionEndYear : item.endYear;
+
+  // Return 0 for years outside the active range
+  if (year < startYear || (effectiveEndYear != null && year > effectiveEndYear)) return 0;
+
+  // Ensure cache structure exists for this item
+  if (!balanceCache[item.id]) {
+    balanceCache[item.id] = {};
+  }
+
+  var cache = balanceCache[item.id];
+
+  // Seed the balance at startYear - 1
+  if (cache[startYear - 1] === undefined) {
+    cache[startYear - 1] = item.amount;
+  }
+
+  var config = item.retirement401k || {};
+  var employeeContribution = config.employeeContribution || 0;
+  var employerMatchPct = config.employerMatchPct || 0;
+  var employerMatchCapPct = config.employerMatchCapPct || 0;
+  var annualSalary = config.annualSalary || 0;
+  var vestingYears = config.vestingYears || 0;
+  var withdrawalStartYear = config.withdrawalStartYear;
+
+  // Fill cache forward from the earliest missing year up to the requested year
+  for (var y = startYear; y <= year; y++) {
+    if (cache[y] !== undefined) continue;
+
+    // If this year is outside the active range, balance is 0
+    if (effectiveEndYear != null && y > effectiveEndYear) {
+      cache[y] = 0;
+      continue;
+    }
+
+    var prevBalance = cache[y - 1];
+    if (prevBalance === undefined) {
+      prevBalance = 0;
+    }
+
+    var rate = item.rate || 0;
+
+    if (withdrawalStartYear != null && y >= withdrawalStartYear) {
+      // Withdrawal phase
+      var annualWithdraw = 0;
+      if (item.withdrawalAmount != null && item.withdrawalAmount > 0) {
+        annualWithdraw = item.withdrawalFrequency === 'monthly'
+          ? item.withdrawalAmount * 12
+          : item.withdrawalAmount;
+      }
+      cache[y] = Math.max(0, (prevBalance - annualWithdraw) * (1 + rate / 100));
+    } else {
+      // Contribution phase
+      var yearsActive = y - startYear;
+      var employerMatch = 0;
+      if (vestingYears <= 0 || yearsActive >= vestingYears) {
+        // Vested: compute employer match
+        var matchableAmount = Math.min(employeeContribution, annualSalary * employerMatchCapPct / 100);
+        employerMatch = matchableAmount * employerMatchPct / 100;
+      }
+      cache[y] = (prevBalance + employeeContribution + employerMatch) * (1 + rate / 100);
+    }
+  }
+
+  return cache[year];
+}
+
 function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
   var loanAmount = loanConfig.loanAmount || 0;
   var annualInterestRate = loanConfig.annualInterestRate || 0;
@@ -272,19 +341,75 @@ function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
 function calcProjection(items, settings) {
   const result = [];
   const endYear = settings.startYear + settings.projectionYears - 1;
+  const balanceCache = {};
+
+  // Pre-compute loan schedules for items with loans
+  const loanSchedules = {};
+  for (const item of items) {
+    if (item.loan && item.loan.loanAmount > 0) {
+      loanSchedules[item.id] = calcLoanSchedule(item.loan, item.startYear, endYear);
+    }
+  }
 
   for (let year = settings.startYear; year <= endYear; year++) {
     const byType = {
       bank: 0, investments: 0, property: 0, vehicles: 0,
-      rentals: 0, inflows: 0, outflows: 0
+      rentals: 0, inflows: 0, outflows: 0,
+      traditional401k: 0, roth401k: 0
     };
 
     for (const item of items) {
-      const active = year >= item.startYear && year <= item.endYear;
+      // Determine effective end year: null means active through projection end
+      const effectiveEndYear = item.endYear == null ? endYear : item.endYear;
+      const active = year >= item.startYear && year <= effectiveEndYear;
       if (!active) continue;
 
       if (ASSET_TYPES.includes(item.type)) {
-        byType[item.type] += calcItemValue(item, year);
+        const is401k = (item.category === 'Traditional 401(k)' || item.category === 'Roth 401(k)') && item.retirement401k;
+        const hasContribOrWithdraw = (item.contributionAmount != null && item.contributionAmount > 0) ||
+                                      (item.withdrawalAmount != null && item.withdrawalAmount > 0);
+        let itemValue = 0;
+
+        if (is401k) {
+          // 401(k) balance-based projection with employer match, vesting, and withdrawal phases
+          itemValue = calc401kBalance(item, year, balanceCache, endYear);
+        } else if ((item.type === 'bank' || item.type === 'investments') && hasContribOrWithdraw) {
+          // Balance-based projection for items with contributions or withdrawals
+          itemValue = calcItemBalance(item, year, balanceCache, endYear);
+        } else if ((item.type === 'property' || item.type === 'vehicles') && loanSchedules[item.id]) {
+          // Net equity = asset value - loan balance
+          const assetValue = item.endYear == null
+            ? item.amount * Math.pow(1 + item.rate / 100, year - item.startYear)
+            : calcItemValue(item, year);
+          const scheduleEntry = loanSchedules[item.id].find(e => e.year === year);
+          const loanBalance = scheduleEntry ? scheduleEntry.closingBalance : 0;
+          itemValue = assetValue - loanBalance;
+
+          // Add loan cash outflows only when loan has a positive balance
+          if (scheduleEntry && scheduleEntry.openingBalance > 0) {
+            const loan = item.loan;
+            const annualLoanOutflow = ((loan.monthlyPayment || 0) + (loan.escrowMonthly || 0) + (loan.extraMonthlyPayment || 0)) * 12;
+            const propertyTaxOutflow = loan.propertyTaxAnnual || 0;
+            byType.outflows += annualLoanOutflow + propertyTaxOutflow;
+          }
+        } else {
+          // Existing compound growth formula for items without contributions/withdrawals/loans
+          // Handle open-ended items (endYear: null) which calcItemValue can't handle directly
+          if (item.endYear == null) {
+            itemValue = item.amount * Math.pow(1 + item.rate / 100, year - item.startYear);
+          } else {
+            itemValue = calcItemValue(item, year);
+          }
+        }
+
+        byType[item.type] += itemValue;
+
+        // Track 401(k) subtypes in byType breakdown
+        if (item.category === 'Traditional 401(k)') {
+          byType.traditional401k += itemValue;
+        } else if (item.category === 'Roth 401(k)') {
+          byType.roth401k += itemValue;
+        }
       } else if (item.type === 'inflows') {
         byType.inflows += item.amount;
       } else if (item.type === 'outflows') {
@@ -1203,7 +1328,7 @@ if (typeof document !== 'undefined') {
 // =============================================================================
 
 if (typeof module !== 'undefined') {
-  module.exports = { formatMoney, calcItemValue, calcItemBalance, calcLoanSchedule, calcProjection, calcStats,
+  module.exports = { formatMoney, calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, calcProjection, calcStats,
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
     STORAGE_KEYS, MAX_ITEMS, TAX_BRACKETS_2025, loadState, saveItems, saveSettings,
     exportToXlsx, importFromXlsx,

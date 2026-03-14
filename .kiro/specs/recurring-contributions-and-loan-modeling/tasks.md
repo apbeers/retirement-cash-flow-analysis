@@ -56,7 +56,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - File: `tests/calculator.test.js`
 
 - [ ] 4. Implement net equity and open-ended items in projection
-  - [~] 4.1 Update `calcProjection(items, settings)` in `script.js`
+  - [x] 4.1 Update `calcProjection(items, settings)` in `script.js`
     - Maintain `balanceCache` map keyed by item id across years
     - For bank/investment items: use `calcItemBalance()` instead of `calcItemValue()`
     - For property/vehicle items with loan: compute net equity = `assetValue - loanBalance`, use net equity in net worth
@@ -78,7 +78,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Implement 401(k) balance calculation
-  - [~] 6.1 Implement `calc401kBalance(item, year, balanceCache)` in `script.js`
+  - [x] 6.1 Implement `calc401kBalance(item, year, balanceCache)` in `script.js`
     - Contribution phase: `balance(y) = (balance(y-1) + employeeContribution + employerMatch) * (1 + rate/100)`
     - Employer match = `min(employeeContribution, salary * matchCapPct/100) * matchPct/100`
     - Vesting: employer match = 0 when `year - startYear < vestingYears`
