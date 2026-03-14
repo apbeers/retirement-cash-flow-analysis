@@ -156,6 +156,11 @@ body {
 
 .item-row:last-child {
   border-bottom: none;
+  margin-bottom: 0;
+}
+
+.item-row + .item-row {
+  margin-top: 0.75rem;
 }
 
 .item-row .item-icon {
