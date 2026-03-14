@@ -5,7 +5,7 @@
 import { state } from './appState.js';
 import { formatMoney } from './prettyPrinter.js';
 
-var MODEL_ID = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
+var MODEL_ID = 'Qwen2.5-3B-Instruct-q4f16_1-MLC';
 
 var engine = null;
 var engineLoading = false;
