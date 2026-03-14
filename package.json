@@ -9,8 +9,8 @@
   },
   "devDependencies": {
     "fast-check": "^4.6.0",
-    "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "jsdom": "^28.1.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "xlsx": "^0.18.5"
