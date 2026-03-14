@@ -156,6 +156,32 @@
             <input type="number" class="form-control form-control-sm" id="setting-fontSize" min="10" max="32" />
           </div>
         </div>
+        <h6 class="mb-3 mt-3">Tax Settings</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="taxFilingStatus">Filing Status</label>
+            <select class="form-select form-select-sm" id="taxFilingStatus">
+              <option value="single">Single</option>
+              <option value="married_filing_jointly">Married Filing Jointly</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="taxBirthYear">Birth Year</label>
+            <input type="number" class="form-control form-control-sm" id="taxBirthYear" min="1900" max="2100" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="taxSSBenefit">Annual Social Security Benefit ($)</label>
+            <input type="number" class="form-control form-control-sm" id="taxSSBenefit" min="0" step="any" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="taxSSStartYear">Social Security Start Year</label>
+            <input type="number" class="form-control form-control-sm" id="taxSSStartYear" min="1900" max="2200" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="taxInflationRate">Bracket Inflation Rate (%)</label>
+            <input type="number" class="form-control form-control-sm" id="taxInflationRate" min="0" step="0.1" />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -184,6 +210,32 @@
     <!-- Chart -->
     <div class="card card-surface p-3 mb-4" id="chart-container">
       <canvas id="projectionChart" height="300"></canvas>
+    </div>
+
+    <!-- Tax Breakdown Panel (dashboard) -->
+    <div class="card card-surface p-3 mb-4" id="taxBreakdownPanel" style="display:none">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>Tax Breakdown (Start Year)</h6>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#taxBreakdownBody">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+      <div class="collapse show" id="taxBreakdownBody">
+        <table class="table table-sm mb-2" style="color: var(--text);">
+          <tbody>
+            <tr><td>Filing Status</td><td class="text-end" id="tax-filingStatus">—</td></tr>
+            <tr><td>Ordinary Income</td><td class="text-end" id="tax-ordinaryIncome">$0</td></tr>
+            <tr><td>LTCG Income</td><td class="text-end" id="tax-ltcgIncome">$0</td></tr>
+            <tr><td>Taxable Social Security</td><td class="text-end" id="tax-taxableSS">$0</td></tr>
+            <tr><td>Standard Deduction</td><td class="text-end" id="tax-standardDeduction">$0</td></tr>
+            <tr><td>Taxable Ordinary Income</td><td class="text-end" id="tax-taxableOrdinaryIncome">$0</td></tr>
+            <tr><td>Ordinary Tax</td><td class="text-end" id="tax-ordinaryTax">$0</td></tr>
+            <tr><td>LTCG Tax</td><td class="text-end" id="tax-ltcgTax">$0</td></tr>
+            <tr class="fw-bold"><td>Total Estimated Tax</td><td class="text-end" id="tax-totalEstimatedTax">$0</td></tr>
+          </tbody>
+        </table>
+        <small class="text-muted">Tax estimates are approximations for planning purposes only and do not constitute tax advice.</small>
+      </div>
     </div>
 
     <!-- Item list area -->
@@ -253,6 +305,108 @@
             <div class="col-6">
               <label class="form-label" for="field-endYear">End Year <span class="text-danger">*</span></label>
               <input type="number" class="form-control" id="field-endYear" min="1900" max="2200" required />
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="checkbox" id="noEndDate" />
+                <label class="form-check-label" for="noEndDate">No end date</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contribution group (bank, investments) -->
+          <div id="contributionGroup" style="display:none" class="mt-3">
+            <h6 class="mb-2">Contributions</h6>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" for="field-contributionAmount">Contribution Amount ($)</label>
+                <input type="number" class="form-control" id="field-contributionAmount" min="0" step="any" />
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="field-contributionFrequency">Frequency</label>
+                <select class="form-select" id="field-contributionFrequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Withdrawal group (all asset types) -->
+          <div id="withdrawalGroup" style="display:none" class="mt-3">
+            <h6 class="mb-2">Withdrawals</h6>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" for="field-withdrawalAmount">Withdrawal Amount ($)</label>
+                <input type="number" class="form-control" id="field-withdrawalAmount" min="0" step="any" />
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="field-withdrawalFrequency">Frequency</label>
+                <select class="form-select" id="field-withdrawalFrequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loan group (property, vehicles) -->
+          <div id="loanGroup" style="display:none" class="mt-3">
+            <h6 class="mb-2">Loan Details</h6>
+            <div class="row g-2">
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanAmount">Loan Amount ($)</label>
+                <input type="number" class="form-control" id="field-loanAmount" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanRate">Annual Interest Rate (%)</label>
+                <input type="number" class="form-control" id="field-loanRate" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanPayment">Monthly Payment ($)</label>
+                <input type="number" class="form-control" id="field-loanPayment" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanEscrow">Escrow Monthly ($)</label>
+                <input type="number" class="form-control" id="field-loanEscrow" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanPropertyTax">Property Tax Annual ($)</label>
+                <input type="number" class="form-control" id="field-loanPropertyTax" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-loanExtra">Extra Monthly Payment ($)</label>
+                <input type="number" class="form-control" id="field-loanExtra" min="0" step="any" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 401(k) group (Traditional 401(k) / Roth 401(k) subcategories) -->
+          <div id="retirement401kGroup" style="display:none" class="mt-3">
+            <h6 class="mb-2">401(k) Settings</h6>
+            <div class="row g-2">
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-employeeContribution">Employee Contribution ($/yr)</label>
+                <input type="number" class="form-control" id="field-employeeContribution" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-employerMatchPct">Employer Match (%)</label>
+                <input type="number" class="form-control" id="field-employerMatchPct" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-matchCapPct">Match Cap (% of Salary)</label>
+                <input type="number" class="form-control" id="field-matchCapPct" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-annualSalary">Annual Salary ($)</label>
+                <input type="number" class="form-control" id="field-annualSalary" min="0" step="any" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-vestingYears">Vesting Years</label>
+                <input type="number" class="form-control" id="field-vestingYears" min="0" step="1" />
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label" for="field-withdrawalStartYear">Withdrawal Start Year</label>
+                <input type="number" class="form-control" id="field-withdrawalStartYear" min="1900" max="2200" />
+              </div>
             </div>
           </div>
         </form>
@@ -272,7 +426,7 @@
 <!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- App script -->
-<script src="script.js"></script>
+<script type="module" src="js/main.js"></script>
 
 </body>
 </html>

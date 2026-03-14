@@ -123,7 +123,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 9. Extend serializer for new fields
-  - [-] 9.1 Update `exportToXlsx(items)` and `importFromXlsx(file)` in `script.js`
+  - [x] 9.1 Update `exportToXlsx(items)` and `importFromXlsx(file)` in `script.js`
     - Add columns for all new fields: `contributionAmount`, `contributionFrequency`, `withdrawalAmount`, `withdrawalFrequency`, `loanAmount`, `loanAnnualInterestRate`, `loanMonthlyPayment`, `loanEscrowMonthly`, `loanPropertyTaxAnnual`, `loanExtraMonthlyPayment`, `employeeContribution`, `employerMatchPct`, `employerMatchCapPct`, `annualSalary`, `vestingYears`, `withdrawalStartYear`
     - Handle `endYear: null` as empty cell on export, empty cell as `null` on import
     - Flatten `loan` and `retirement401k` sub-objects to/from flat columns
@@ -142,7 +142,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Update modal controller for new field groups
-  - [~] 11.1 Add contribution, withdrawal, loan, 401(k), and open-ended field groups to the item modal in `index.html` and `script.js`
+  - [x] 11.1 Add contribution, withdrawal, loan, 401(k), and open-ended field groups to the item modal in `index.html` and `script.js`
     - Contribution group (shown for bank, investments): Contribution Amount, Contribution Frequency select (monthly/annual)
     - Withdrawal group (shown for all asset types): Withdrawal Amount, Withdrawal Frequency select (monthly/annual)
     - Loan group (shown for property, vehicles): Loan Amount, Annual Interest Rate, Monthly Payment, Escrow Monthly, Property Tax Annual, Extra Monthly Payment
@@ -163,7 +163,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - _Requirements: 1.6, 2.6, 3.2, 3.9, 9.9, 10.2, 10.3_
 
 - [ ] 12. Update item row display and dashboard
-  - [~] 12.1 Update `renderItemList()` in `script.js` for new item metadata
+  - [x] 12.1 Update `renderItemList()` in `script.js` for new item metadata
     - Contribution configured: append `+$X/mo contribution` or `+$X/yr contribution` to meta line
     - Withdrawal configured: append `−$X/mo withdrawal` or `−$X/yr withdrawal` to meta line
     - Loan configured: show `Loan: $X balance · Equity: $Y` on meta line
@@ -171,7 +171,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Open-ended: display `startYear – ongoing` instead of `startYear – endYear`
     - Add expandable "Loan Details" section showing year-by-year amortisation table
     - _Requirements: 1.7, 2.7, 3.8, 4.3, 8.1, 8.2, 8.3, 8.4, 8.5, 9.10, 10.6_
-  - [~] 12.2 Update `updateChart()` to add tax estimate dashed line dataset
+  - [x] 12.2 Update `updateChart()` to add tax estimate dashed line dataset
     - Add dashed dataset for `tax.totalEstimatedTax` per year
     - Add `traditional401k` and `roth401k` per-type dashed lines when items exist
     - _Requirements: 11.15_
@@ -196,7 +196,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - _Requirements: 11.1, 11.2, 11.3, 11.18_
 
 - [ ] 14. Update `index.html` and `styles.css` for new UI elements
-  - [~] 14.1 Add HTML structure for new modal field groups, tax breakdown panel, and tax settings section
+  - [x] 14.1 Add HTML structure for new modal field groups, tax breakdown panel, and tax settings section
     - Add contribution/withdrawal/loan/401(k)/open-ended field groups inside the existing modal form
     - Add collapsible tax breakdown card to dashboard area
     - Add tax settings section to settings panel
