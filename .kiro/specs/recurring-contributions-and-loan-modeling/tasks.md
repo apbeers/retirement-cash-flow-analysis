@@ -175,17 +175,17 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Add dashed dataset for `tax.totalEstimatedTax` per year
     - Add `traditional401k` and `roth401k` per-type dashed lines when items exist
     - _Requirements: 11.15_
-  - [~] 12.3 Implement `renderTaxBreakdown(projectionYear, settings)` in `script.js`
+  - [x] 12.3 Implement `renderTaxBreakdown(projectionYear, settings)` in `script.js`
     - Collapsible card on dashboard showing start-year tax detail: Filing Status, Ordinary Income, LTCG Income, Taxable Social Security, Standard Deduction, Taxable Ordinary Income, Ordinary Tax, LTCG Tax, Total Estimated Tax
     - All values formatted with `formatMoney()`
     - Include disclaimer note that estimates are approximations for planning purposes only
     - Wire into `render()` to display on dashboard
     - _Requirements: 11.14, 11.15, 11.16, 11.17_
-  - [~] 12.4 Update `calcStats()` to include loan cash outflows and 401(k) contributions in stats
+  - [x] 12.4 Update `calcStats()` to include loan cash outflows and 401(k) contributions in stats
     - _Requirements: 5.1, 5.2, 5.3_
 
 - [ ] 13. Add tax settings UI to settings panel
-  - [~] 13.1 Add tax settings inputs to `index.html` and wire event handlers in `script.js`
+  - [x] 13.1 Add tax settings inputs to `index.html` and wire event handlers in `script.js`
     - Filing Status select (Single / Married Filing Jointly)
     - Birth Year number input
     - Annual Social Security Benefit number input
@@ -201,7 +201,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Add collapsible tax breakdown card to dashboard area
     - Add tax settings section to settings panel
     - _Requirements: 1.1, 2.1, 3.1, 9.2, 10.1, 11.1, 11.16_
-  - [~] 14.2 Add CSS styles for new components in `styles.css`
+  - [x] 14.2 Add CSS styles for new components in `styles.css`
     - Style loan details expandable section
     - Style tax breakdown panel
     - Style conditional field group visibility

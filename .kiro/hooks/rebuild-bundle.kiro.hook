@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Rebuild Browser Bundle",
+  "description": "Runs node build.js to regenerate app.bundle.js whenever a JS source file in the js/ directory is edited",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "js/*.js"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "node build.js"
+  }
+}
