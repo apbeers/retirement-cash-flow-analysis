@@ -29,11 +29,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Return 0 for years before `startYear` or after effective end year
     - When no contribution/withdrawal configured, reduce to existing compound growth formula
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 2.2, 2.3, 2.4, 2.5, 5.1, 5.4_
-  - [ ]* 2.2 Write property test for contribution balance formula (Property 1)
+  - [x]* 2.2 Write property test for contribution balance formula (Property 1)
     - **Property 1: Contribution Balance Formula**
     - **Validates: Requirements 1.2, 1.3, 1.5, 5.1**
     - File: `tests/calculator.test.js`
-  - [ ]* 2.3 Write property test for withdrawal clamps at zero (Property 2)
+  - [x]* 2.3 Write property test for withdrawal clamps at zero (Property 2)
     - **Property 2: Withdrawal Clamps at Zero**
     - **Validates: Requirements 2.2, 2.3, 2.4, 5.4**
     - File: `tests/calculator.test.js`
@@ -46,11 +46,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Escrow and property tax tracked as cash outflows only, never reduce loan balance
     - Return array of `AmortYear` objects
     - _Requirements: 3.3, 3.4, 3.5, 3.10, 4.1, 4.2, 4.4, 4.5_
-  - [ ]* 3.2 Write property test for loan amortisation correctness (Property 3)
+  - [x]* 3.2 Write property test for loan amortisation correctness (Property 3)
     - **Property 3: Loan Amortisation Correctness**
     - **Validates: Requirements 3.3, 3.4, 3.5, 3.10, 4.1, 4.2**
     - File: `tests/calculator.test.js`
-  - [ ]* 3.3 Write property test for escrow does not reduce loan balance (Property 5)
+  - [x]* 3.3 Write property test for escrow does not reduce loan balance (Property 5)
     - **Property 5: Escrow and Property Tax Do Not Reduce Loan Balance**
     - **Validates: Requirements 4.4, 4.5**
     - File: `tests/calculator.test.js`
@@ -65,11 +65,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Add loan cash outflows (monthlyPayment + escrowMonthly + extraMonthlyPayment) × 12 to outflows
     - Add `traditional401k` and `roth401k` to `byType` breakdown
     - _Requirements: 3.6, 3.7, 5.1, 5.2, 5.3, 5.5, 10.4, 10.5, 10.7_
-  - [ ]* 4.2 Write property test for net equity formula (Property 4)
+  - [x]* 4.2 Write property test for net equity formula (Property 4)
     - **Property 4: Net Equity Formula**
     - **Validates: Requirements 3.6, 3.7, 5.2**
     - File: `tests/calculator.test.js`
-  - [ ]* 4.3 Write property test for open-ended item active through projection end (Property 6)
+  - [x]* 4.3 Write property test for open-ended item active through projection end (Property 6)
     - **Property 6: Open-Ended Item Active Through Projection End**
     - **Validates: Requirements 10.4, 10.5, 10.7, 6.7**
     - File: `tests/calculator.test.js`
@@ -85,7 +85,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Withdrawal phase (when `year >= withdrawalStartYear`): `balance(y) = max(0, (balance(y-1) - annualWithdraw) * (1 + rate/100))`
     - Wire into `calcProjection` for items with category `Traditional 401(k)` or `Roth 401(k)`
     - _Requirements: 9.3, 9.4, 9.5, 9.6_
-  - [ ]* 6.2 Write property test for 401(k) employer match respects vesting (Property 7)
+  - [x]* 6.2 Write property test for 401(k) employer match respects vesting (Property 7)
     - **Property 7: 401(k) Employer Match Respects Vesting**
     - **Validates: Requirements 9.5**
     - File: `tests/calculator.test.js`
@@ -110,11 +110,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Test Social Security taxable portion at each threshold
     - Test Roth 401(k) withdrawals excluded from taxable income
     - _Requirements: 11.5, 11.7, 11.8, 11.9, 11.10, 11.11, 11.12_
-  - [ ]* 7.4 Write property test for tax bracket inflation formula (Property 8)
+  - [x]* 7.4 Write property test for tax bracket inflation formula (Property 8)
     - **Property 8: Tax Bracket Inflation Formula**
     - **Validates: Requirements 11.5**
     - File: `tests/calculator.test.js`
-  - [ ]* 7.5 Write property test for tax deducted from net worth (Property 9)
+  - [x]* 7.5 Write property test for tax deducted from net worth (Property 9)
     - **Property 9: Tax Deducted from Net Worth**
     - **Validates: Requirements 11.13**
     - File: `tests/calculator.test.js`
@@ -129,11 +129,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Flatten `loan` and `retirement401k` sub-objects to/from flat columns
     - Treat missing columns in old workbooks as null (backward compatibility)
     - _Requirements: 7.1, 7.2, 7.4, 9.11, 9.12, 10.8_
-  - [ ]* 9.2 Write property test for extended Excel round-trip (Property 10)
+  - [x]* 9.2 Write property test for extended Excel round-trip (Property 10)
     - **Property 10: Extended Excel Round-Trip**
     - **Validates: Requirements 7.1, 7.2, 7.3, 9.11, 9.12, 10.8**
     - File: `tests/serializer.test.js`
-  - [ ]* 9.3 Write property test for backward-compatible import (Property 11)
+  - [x]* 9.3 Write property test for backward-compatible import (Property 11)
     - **Property 11: Backward-Compatible Import**
     - **Validates: Requirements 7.4**
     - File: `tests/serializer.test.js`
