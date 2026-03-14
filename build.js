@@ -47,6 +47,7 @@ bundle += '// Expose globals for onclick handlers\n';
 bundle += 'window.initiateDelete = initiateDelete;\n';
 bundle += 'window.confirmDelete = confirmDelete;\n';
 bundle += 'window.cancelDelete = cancelDelete;\n';
+bundle += 'window.openEditModal = openEditModal;\n';
 
 bundle += '\n})();\n';
 
