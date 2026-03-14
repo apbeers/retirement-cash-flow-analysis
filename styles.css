@@ -207,3 +207,74 @@ body {
   background: rgba(88, 166, 255, 0.3);
   border-radius: 3px;
 }
+
+/* Loan details expandable section */
+.loan-details-section {
+  margin-top: 0.5rem;
+}
+
+.loan-details-table-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.loan-details-section.expanded .loan-details-table-wrapper {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.loan-details-section.expanded .loan-details-toggle i {
+  transform: rotate(180deg);
+}
+
+.loan-details-toggle i {
+  transition: transform 0.2s ease;
+}
+
+.loan-details-table {
+  color: var(--text);
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+
+.loan-details-table th {
+  color: rgba(224, 224, 224, 0.6);
+  font-weight: 600;
+  border-color: var(--border);
+}
+
+.loan-details-table td {
+  border-color: var(--border);
+}
+
+/* Tax breakdown panel */
+#taxBreakdownPanel .table {
+  font-size: 0.85rem;
+}
+
+#taxBreakdownPanel .table td {
+  border-color: var(--border);
+  padding: 0.35rem 0.5rem;
+}
+
+#taxBreakdownPanel .table .fw-bold td {
+  border-top: 2px solid var(--accent);
+}
+
+/* Conditional field groups in modal */
+#contributionGroup,
+#withdrawalGroup,
+#loanGroup,
+#retirement401kGroup {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+#contributionGroup h6,
+#withdrawalGroup h6,
+#loanGroup h6,
+#retirement401kGroup h6 {
+  color: var(--accent);
+  font-size: 0.85rem;
+}

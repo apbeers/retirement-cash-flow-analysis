@@ -43,7 +43,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
   - [ ]* 4.2 Write unit tests for `calcItemValue` edge cases
     - Test `rate = 0`, `year === startYear`, `year === endYear`, `year < startYear`, negative rate
     - File: `tests/calculator.test.js`
-  - [ ]* 4.3 Write property test for compound growth formula correctness (Property 9)
+  - [x]* 4.3 Write property test for compound growth formula correctness (Property 9)
     - **Property 9: Compound Growth Formula Correctness**
     - **Validates: Requirements 3.2, 3.3, 3.5**
     - File: `tests/calculator.test.js`

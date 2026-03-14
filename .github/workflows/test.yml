@@ -15,4 +15,5 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: node build.js
       - run: npm test
