@@ -5,7 +5,7 @@
 import { state } from './appState.js';
 import { formatMoney } from './prettyPrinter.js';
 
-var MODEL_ID = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
+var MODEL_ID = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 
 var engine = null;
 var engineLoading = false;
@@ -27,7 +27,10 @@ export function checkWebGPU() {
 export function assembleFinancialContext() {
   var s = state.settings;
   var lines = [];
-  lines.push('You are a helpful financial planning assistant. The user has the following retirement plan data:');
+  lines.push('You are a concise financial planning assistant embedded in a retirement cash flow planner app.');
+  lines.push('Below is the user\'s current financial data. Use ONLY this data to answer questions.');
+  lines.push('If asked about net worth, total assets, cash flow, or projections, calculate from the data below.');
+  lines.push('Keep answers short and specific. Use dollar amounts when relevant.');
   lines.push('');
   lines.push('SETTINGS:');
   lines.push('- Start Year: ' + s.startYear);
@@ -71,7 +74,7 @@ export function assembleFinancialContext() {
     }
   }
   lines.push('');
-  lines.push('Answer questions about this retirement plan. Be concise and helpful.');
+  lines.push('INSTRUCTIONS: Answer the user\'s question using ONLY the data above. Be specific with numbers. If you need to calculate, show the math briefly.');
   return lines.join('\n');
 }
 
