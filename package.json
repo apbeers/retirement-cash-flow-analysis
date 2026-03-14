@@ -1,0 +1,14 @@
+{
+  "name": "retirement-cash-flow-planner",
+  "version": "1.0.0",
+  "description": "Static single-page retirement cash flow planner",
+  "type": "module",
+  "scripts": {
+    "test": "vitest --run"
+  },
+  "devDependencies": {
+    "fast-check": "^3.22.0",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}

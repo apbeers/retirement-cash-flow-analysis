@@ -1,0 +1,209 @@
+/* CSS Custom Properties — Default Dark Theme */
+:root {
+  --bg: #181a1b;
+  --surface: #23272e;
+  --text: #e0e0e0;
+  --accent: #58a6ff;
+  --sidebar-width: 220px;
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+/* Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+#sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background-color: var(--surface);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.nav-section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(224, 224, 224, 0.4);
+  padding: 0.25rem 0.75rem;
+  list-style: none;
+}
+
+#sidebar .nav-link {
+  color: var(--text);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+
+#sidebar .nav-link:hover {
+  background-color: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+}
+
+#sidebar .nav-link.active {
+  background-color: rgba(88, 166, 255, 0.18);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+#sidebar .badge {
+  background-color: rgba(88, 166, 255, 0.2);
+  color: var(--accent);
+  font-size: 0.7rem;
+}
+
+/* Main content */
+#main-content {
+  min-height: 100vh;
+  background-color: var(--bg);
+}
+
+/* Cards */
+.card-surface {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+/* Accent button */
+.btn-accent {
+  background-color: var(--accent);
+  color: #0d1117;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-accent:hover {
+  background-color: #79b8ff;
+  color: #0d1117;
+}
+
+/* Modal */
+.modal-surface {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.modal-surface .modal-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-surface .modal-footer {
+  border-top: 1px solid var(--border);
+}
+
+/* Form controls inside dark theme */
+.form-control,
+.form-select {
+  background-color: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--bg);
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25);
+}
+
+.form-control::placeholder {
+  color: rgba(224, 224, 224, 0.35);
+}
+
+/* Item list */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.item-row:last-child {
+  border-bottom: none;
+}
+
+.item-row .item-icon {
+  font-size: 1.1rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.item-row .item-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.item-row .item-meta {
+  color: rgba(224, 224, 224, 0.55);
+  font-size: 0.8rem;
+}
+
+.item-row .item-value {
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 80px;
+  text-align: right;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: rgba(224, 224, 224, 0.4);
+}
+
+.empty-state i {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+/* Chart canvas */
+#projectionChart {
+  width: 100% !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(88, 166, 255, 0.3);
+  border-radius: 3px;
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retirement Cash Flow Planner</title>
+  <!-- Bootstrap 5 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <!-- App styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="d-flex" id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3">
+    <div class="sidebar-brand mb-4">
+      <i class="bi bi-graph-up-arrow me-2"></i>
+      <span>RCFP</span>
+    </div>
+
+    <ul class="nav nav-pills flex-column mb-auto">
+      <!-- Overview -->
+      <li class="nav-section-label">OVERVIEW</li>
+      <li class="nav-item">
+        <a href="#" class="nav-link active" data-section="dashboard">
+          <i class="bi bi-speedometer2 me-2"></i>Dashboard
+        </a>
+      </li>
+
+      <!-- Cash Flow -->
+      <li class="nav-section-label mt-3">CASH FLOW</li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="inflows">
+          <i class="bi bi-arrow-down-circle me-2"></i>Inflows
+          <span class="badge rounded-pill ms-auto" id="badge-inflows">0</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="outflows">
+          <i class="bi bi-arrow-up-circle me-2"></i>Outflows
+          <span class="badge rounded-pill ms-auto" id="badge-outflows">0</span>
+        </a>
+      </li>
+
+      <!-- Assets -->
+      <li class="nav-section-label mt-3">ASSETS</li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="bank">
+          <i class="bi bi-bank me-2"></i>Bank Accounts
+          <span class="badge rounded-pill ms-auto" id="badge-bank">0</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="investments">
+          <i class="bi bi-bar-chart-line me-2"></i>Investments
+          <span class="badge rounded-pill ms-auto" id="badge-investments">0</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="property">
+          <i class="bi bi-house me-2"></i>Property
+          <span class="badge rounded-pill ms-auto" id="badge-property">0</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="vehicles">
+          <i class="bi bi-car-front me-2"></i>Vehicles
+          <span class="badge rounded-pill ms-auto" id="badge-vehicles">0</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-section="rentals">
+          <i class="bi bi-building me-2"></i>Rentals
+          <span class="badge rounded-pill ms-auto" id="badge-rentals">0</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Settings toggle -->
+    <div class="mt-auto">
+      <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#settingsPanel">
+        <i class="bi bi-gear me-2"></i>Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main id="main-content" class="flex-grow-1 p-4">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4" id="main-header">
+      <div>
+        <h1 class="h4 mb-0" id="section-title">Dashboard</h1>
+        <small class="text-muted" id="section-subtitle">Overview of your retirement plan</small>
+      </div>
+      <div class="d-flex gap-2" id="header-actions">
+        <button class="btn btn-sm btn-outline-secondary" id="btn-export">
+          <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </button>
+        <label class="btn btn-sm btn-outline-secondary mb-0" for="import-file">
+          <i class="bi bi-upload me-1"></i>Import Excel
+        </label>
+        <input type="file" id="import-file" accept=".xlsx" class="d-none" />
+        <button class="btn btn-sm btn-accent d-none" id="btn-add-item">
+          <i class="bi bi-plus-lg me-1"></i><span id="btn-add-label">Add Item</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Settings panel (collapsible) -->
+    <div class="collapse mb-4" id="settingsPanel">
+      <div class="card card-surface p-3">
+        <h6 class="mb-3">Projection Settings</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Chart Title</label>
+            <input type="text" class="form-control form-control-sm" id="setting-chartTitle" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Start Year</label>
+            <input type="number" class="form-control form-control-sm" id="setting-startYear" min="1900" max="2200" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Projection Years</label>
+            <input type="number" class="form-control form-control-sm" id="setting-projectionYears" min="1" max="100" />
+          </div>
+        </div>
+        <h6 class="mb-3">Visual Theme</h6>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Background</label>
+            <input type="color" class="form-control form-control-color" id="setting-bg" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Surface</label>
+            <input type="color" class="form-control form-control-color" id="setting-surface" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Text</label>
+            <input type="color" class="form-control form-control-color" id="setting-text" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Accent</label>
+            <input type="color" class="form-control form-control-color" id="setting-accent" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Font Family</label>
+            <input type="text" class="form-control form-control-sm" id="setting-fontFamily" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Font Size (px)</label>
+            <input type="number" class="form-control form-control-sm" id="setting-fontSize" min="10" max="32" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats cards (dashboard) -->
+    <div class="row g-3 mb-4" id="stats-row">
+      <div class="col-md-4">
+        <div class="card card-surface p-3">
+          <div class="text-muted small mb-1">Total Assets</div>
+          <div class="h4 mb-0" id="stat-totalAssets">$0</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-surface p-3">
+          <div class="text-muted small mb-1">Annual Inflow</div>
+          <div class="h4 mb-0" id="stat-annualInflow">$0</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-surface p-3">
+          <div class="text-muted small mb-1">Annual Outflow</div>
+          <div class="h4 mb-0" id="stat-annualOutflow">$0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card card-surface p-3 mb-4" id="chart-container">
+      <canvas id="projectionChart" height="300"></canvas>
+    </div>
+
+    <!-- Item list area -->
+    <div id="item-list-area">
+      <!-- Populated by renderItemList() -->
+    </div>
+
+  </main>
+</div>
+
+<!-- Add/Edit Item Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content modal-surface">
+      <div class="modal-header">
+        <h5 class="modal-title" id="itemModalLabel">Add Item</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Validation alert -->
+        <div class="alert alert-danger d-none" id="modal-error" role="alert"></div>
+
+        <form id="item-form" novalidate>
+          <input type="hidden" id="field-editIndex" value="" />
+
+          <div class="mb-3">
+            <label class="form-label" for="field-name">Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="field-name" required autofocus />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="field-type">Type <span class="text-danger">*</span></label>
+            <select class="form-select" id="field-type" required>
+              <option value="">Select type…</option>
+              <option value="bank">Bank Account</option>
+              <option value="investments">Investment</option>
+              <option value="property">Property</option>
+              <option value="vehicles">Vehicle</option>
+              <option value="rentals">Rental</option>
+              <option value="inflows">Inflow</option>
+              <option value="outflows">Outflow</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="field-category">Category <span class="text-danger">*</span></label>
+            <select class="form-select" id="field-category" required>
+              <option value="">Select category…</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="field-amount">Amount ($) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="field-amount" min="0" step="any" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="field-rate">Annual Rate (%)</label>
+            <input type="number" class="form-control" id="field-rate" step="any" value="0" />
+          </div>
+
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label" for="field-startYear">Start Year <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="field-startYear" min="1900" max="2200" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="field-endYear">End Year <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="field-endYear" min="1900" max="2200" required />
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-accent" id="btn-save-item">Save Item</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- App script -->
+<script src="script.js"></script>
+
+</body>
+</html>

@@ -6,7 +6,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
 
 ## Tasks
 
-- [~] 1. Project scaffold and test setup
+- [x] 1. Project scaffold and test setup
   - Create `index.html` with Bootstrap 5, Chart.js, and SheetJS CDN links; add canvas, sidebar nav, modal placeholder, and main content area
   - Create `styles.css` with CSS custom properties for the default dark theme (`--bg`, `--surface`, `--text`, `--accent`)
   - Create `script.js` with all constants: `STORAGE_KEYS`, `DEFAULT_SETTINGS`, `SUBCATEGORIES`, `ASSET_TYPES`, `CASHFLOW_TYPES`, `ALL_TYPES`, `MAX_ITEMS`
@@ -14,8 +14,8 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
   - Create `vitest.config.js` (or `package.json` with vitest dependency) so `npx vitest --run` works
   - _Requirements: 1.1, 2.1–2.7, 9.2, 10.5_
 
-- [ ] 2. State module — load, save, and persistence
-  - [~] 2.1 Implement `loadState()`, `saveItems(items)`, and `saveSettings(settings)` in `script.js`
+- [x] 2. State module — load, save, and persistence
+  - [x] 2.1 Implement `loadState()`, `saveItems(items)`, and `saveSettings(settings)` in `script.js`
     - `loadState` reads from `localStorage`, falls back to empty items + `DEFAULT_SETTINGS` on missing or corrupt data
     - Wrap `JSON.parse` in try/catch; log error and return defaults on failure
     - _Requirements: 7.2, 7.3, 7.4_
@@ -25,7 +25,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - File: `tests/state.test.js`
 
 - [ ] 3. PrettyPrinter — formatMoney
-  - [~] 3.1 Implement `formatMoney(value)` in `script.js`
+  - [x] 3.1 Implement `formatMoney(value)` in `script.js`
     - `≥ 1,000,000` → `$X.XM`; `≥ 1,000` → `$X.XK`; `< 1,000` → `$X`
     - _Requirements: 5.5, 11.2_
   - [ ]* 3.2 Write unit tests for `formatMoney` concrete examples
@@ -157,39 +157,39 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - _Requirements: 1.7, 6.2, 6.3, 6.5_
 
 - [ ] 10. Renderer module — chart and stats
-  - [ ] 10.1 Implement `updateStats()` in `script.js`
+  - [~] 10.1 Implement `updateStats()` in `script.js`
     - Calls `calcStats`, formats values with `formatMoney`, updates the three summary card DOM elements
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 10.2 Implement `updateChart()` in `script.js`
+  - [~] 10.2 Implement `updateChart()` in `script.js`
     - Calls `calcProjection`, builds Chart.js dataset for Total Net Worth (solid line) and one dashed dataset per type that has ≥1 item
     - x-axis: years; y-axis: `formatMoney` tick callback
     - Dark background, high-contrast grid lines and legend text
     - Wrap Chart.js init in try/catch; log error without crashing
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-  - [ ] 10.3 Implement master `render()` function in `script.js`
+  - [~] 10.3 Implement master `render()` function in `script.js`
     - Calls `renderItemList()`, `updateChart()`, `updateStats()`, `updateBadges()` in sequence
     - _Requirements: 3.6, 4.3, 5.4, 6.3_
 
 - [ ] 11. Sidebar navigation and settings panel
-  - [ ] 11.1 Implement sidebar click event handlers in `script.js`
+  - [~] 11.1 Implement sidebar click event handlers in `script.js`
     - Track active section; on click, update active state, call `render`
     - Show context-sensitive "Add [Item Type]" button in section header for non-Dashboard sections
     - _Requirements: 6.1, 6.4, 6.6_
-  - [ ] 11.2 Implement settings panel inputs in `script.js`
+  - [~] 11.2 Implement settings panel inputs in `script.js`
     - Wire Chart Title, Start Year, and Projection Years inputs to `saveSettings` + `render` on change
     - Wire colour pickers and font controls to CSS custom properties + `saveSettings` on change
     - Wrap `localStorage.setItem` in try/catch; show toast on quota exceeded
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 10.1, 10.2, 10.3, 10.4_
 
 - [ ] 12. Import/export wiring and error toasts
-  - [ ] 12.1 Wire "Export Excel" button to `exportToXlsx(items)` in `script.js`
+  - [~] 12.1 Wire "Export Excel" button to `exportToXlsx(items)` in `script.js`
     - _Requirements: 8.1_
-  - [ ] 12.2 Wire file input to `importFromXlsx(file)` in `script.js`
+  - [~] 12.2 Wire file input to `importFromXlsx(file)` in `script.js`
     - On success: call `saveItems`, call `render`, show skipped-rows alert if `skipped > 0`
     - On non-xlsx: show Bootstrap toast "Only .xlsx files are supported. No data was changed."
     - _Requirements: 8.2, 8.3, 8.5_
 
-- [ ] 13. Final checkpoint — all tests pass, app fully wired
+- [~] 13. Final checkpoint — all tests pass, app fully wired
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
