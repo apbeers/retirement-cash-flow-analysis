@@ -557,8 +557,8 @@ export function updateChart() {
       datasets.push({ label: 'Roth 401(k)', data: proj.map(p => p.byType.roth401k || 0), borderColor: '#aed581', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [6,3], pointRadius: 0, tension: 0.3 });
     }
     const cfg = { type:'line', data:{labels:years,datasets}, options:{responsive:true,animation:false,plugins:{legend:{display:true,labels:{color:textColor,font:{size:12}}},title:{display:!!state.settings.chartTitle,text:state.settings.chartTitle||'',color:textColor},tooltip:{mode:'index',intersect:false}},scales:{x:{ticks:{color:textColor},grid:{color:gridColor}},y:{ticks:{color:textColor,callback:function(v){return formatMoney(v);}},grid:{color:gridColor}}},onHover:function(evt,_el,chart){_handleChartHover(evt,chart);}},plugins:[_crosshairPlugin] };
-    if (state.chartInstance) { state.chartInstance.data = cfg.data; state.chartInstance.options = cfg.options; state.chartInstance.config.plugins = [_crosshairPlugin]; state.chartInstance.update(); }
-    else { state.chartInstance = new Chart(canvas, cfg); }
+    if (state.chartInstance) { state.chartInstance.destroy(); state.chartInstance = null; }
+    state.chartInstance = new Chart(canvas, cfg);
     // Clear crosshair when mouse leaves chart
     if (!canvas._crosshairLeaveAttached) {
       canvas.addEventListener('mouseleave', function() { _setCrosshairYear(null); });
