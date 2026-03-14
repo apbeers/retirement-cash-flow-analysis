@@ -123,7 +123,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 9. Extend serializer for new fields
-  - [~] 9.1 Update `exportToXlsx(items)` and `importFromXlsx(file)` in `script.js`
+  - [-] 9.1 Update `exportToXlsx(items)` and `importFromXlsx(file)` in `script.js`
     - Add columns for all new fields: `contributionAmount`, `contributionFrequency`, `withdrawalAmount`, `withdrawalFrequency`, `loanAmount`, `loanAnnualInterestRate`, `loanMonthlyPayment`, `loanEscrowMonthly`, `loanPropertyTaxAnnual`, `loanExtraMonthlyPayment`, `employeeContribution`, `employerMatchPct`, `employerMatchCapPct`, `annualSalary`, `vestingYears`, `withdrawalStartYear`
     - Handle `endYear: null` as empty cell on export, empty cell as `null` on import
     - Flatten `loan` and `retirement401k` sub-objects to/from flat columns
