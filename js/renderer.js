@@ -72,6 +72,12 @@ export function renderItemList() {
     return '<div class="item-row" data-item-index="'+idx+'"><i class="bi '+icon+' item-icon"></i><div class="flex-grow-1"><div class="item-name">'+_escapeHtml(item.name)+'</div><div class="item-meta">'+_escapeHtml(meta)+'</div>'+extra+ldh+'<div class="item-chart-section" id="item-chart-section-'+idx+'" style="display:none"><canvas id="item-chart-'+idx+'" height="150"></canvas></div></div><div class="item-value">'+formatMoney(item.amount)+'</div><div class="item-action-area"><button class="btn btn-sm btn-outline-secondary" onclick="toggleItemChart('+idx+')" title="Chart"><i class="bi bi-graph-up"></i></button><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal('+idx+')" title="Edit"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="initiateDelete('+idx+')" title="Delete"><i class="bi bi-trash"></i></button></div></div>';
   });
   listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
+
+  // Auto-render charts for all visible items
+  filtered.forEach((item) => {
+    var idx = state.items.indexOf(item);
+    try { toggleItemChart(idx); } catch (e) { /* Chart.js not available in test env */ }
+  });
 }
 
 export function toggleItemChart(idx) {
