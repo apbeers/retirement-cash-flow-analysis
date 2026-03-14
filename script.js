@@ -338,6 +338,113 @@ function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
   return schedule;
 }
 
+function inflateBrackets(brackets, inflationFactor) {
+  return brackets.map(function(b) {
+    return {
+      rate: b.rate,
+      upTo: b.upTo === Infinity ? Infinity : Math.round(b.upTo * inflationFactor)
+    };
+  });
+}
+
+function applyMarginalBrackets(taxableIncome, brackets) {
+  var tax = 0;
+  var prevUpTo = 0;
+  for (var i = 0; i < brackets.length; i++) {
+    var bracket = brackets[i];
+    if (taxableIncome <= prevUpTo) break;
+    var taxableInBracket = Math.min(taxableIncome, bracket.upTo) - prevUpTo;
+    tax += taxableInBracket * bracket.rate;
+    prevUpTo = bracket.upTo;
+  }
+  return tax;
+}
+
+function determineLTCGTax(taxableOrdinaryIncome, ltcgIncome, ltcgBrackets) {
+  if (ltcgIncome <= 0) return 0;
+  var tax = 0;
+  var ordinaryEnd = taxableOrdinaryIncome;
+  var ltcgRemaining = ltcgIncome;
+  for (var i = 0; i < ltcgBrackets.length; i++) {
+    var bracket = ltcgBrackets[i];
+    if (ltcgRemaining <= 0) break;
+    // The portion of this bracket available after ordinary income fills it
+    var bracketStart = i === 0 ? 0 : ltcgBrackets[i - 1].upTo;
+    var bracketEnd = bracket.upTo;
+    // How much of this bracket is already consumed by ordinary income
+    var consumed = Math.max(0, Math.min(ordinaryEnd, bracketEnd) - bracketStart);
+    var available = (bracketEnd === Infinity ? ltcgRemaining : bracketEnd - bracketStart) - consumed;
+    if (available <= 0) continue;
+    var taxableHere = Math.min(ltcgRemaining, available);
+    tax += taxableHere * bracket.rate;
+    ltcgRemaining -= taxableHere;
+  }
+  return tax;
+}
+
+function calcTax(taxInputs, settings) {
+  var year = taxInputs.year;
+  var traditional401kWithdrawals = taxInputs.traditional401kWithdrawals || 0;
+  var bankInterest = taxInputs.bankInterest || 0;
+  var ltcgIncome = taxInputs.ltcgIncome || 0;
+  var annualSocialSecurityBenefit = taxInputs.annualSocialSecurityBenefit || 0;
+  var socialSecurityStartYear = taxInputs.socialSecurityStartYear;
+
+  var filingStatus = (settings.tax && settings.tax.filingStatus) || 'single';
+  var bracketInflationRate = (settings.tax && settings.tax.bracketInflationRate != null)
+    ? settings.tax.bracketInflationRate : 2.5;
+
+  var seedBrackets = TAX_BRACKETS_2025[filingStatus] || TAX_BRACKETS_2025.single;
+
+  // Compute inflation factor: 1.0 for year <= 2025
+  var inflationFactor = year > 2025
+    ? Math.pow(1 + bracketInflationRate / 100, year - 2025)
+    : 1.0;
+
+  var inflatedOrdinaryBrackets = inflateBrackets(seedBrackets.ordinary, inflationFactor);
+  var inflatedLTCGBrackets = inflateBrackets(seedBrackets.ltcg, inflationFactor);
+  var inflatedStdDeduction = Math.round(seedBrackets.standardDeduction * inflationFactor);
+  var inflatedSSLow = Math.round(seedBrackets.ssTaxThresholdLow * inflationFactor);
+  var inflatedSSHigh = Math.round(seedBrackets.ssTaxThresholdHigh * inflationFactor);
+
+  // Ordinary income before Social Security
+  var ordinaryIncomeBeforeSS = traditional401kWithdrawals + bankInterest;
+
+  // Social Security taxable portion
+  var taxableSocialSecurity = 0;
+  if (socialSecurityStartYear != null && year >= socialSecurityStartYear && annualSocialSecurityBenefit > 0) {
+    var provisionalIncome = ordinaryIncomeBeforeSS + 0.5 * annualSocialSecurityBenefit;
+    if (provisionalIncome > inflatedSSHigh) {
+      taxableSocialSecurity = 0.85 * annualSocialSecurityBenefit;
+    } else if (provisionalIncome > inflatedSSLow) {
+      taxableSocialSecurity = 0.50 * annualSocialSecurityBenefit;
+    } else {
+      taxableSocialSecurity = 0;
+    }
+  }
+
+  var ordinaryIncome = ordinaryIncomeBeforeSS + taxableSocialSecurity;
+
+  var taxableOrdinaryIncome = Math.max(0, ordinaryIncome - inflatedStdDeduction);
+
+  var ordinaryTax = applyMarginalBrackets(taxableOrdinaryIncome, inflatedOrdinaryBrackets);
+
+  var ltcgTax = determineLTCGTax(taxableOrdinaryIncome, ltcgIncome, inflatedLTCGBrackets);
+
+  var totalEstimatedTax = ordinaryTax + ltcgTax;
+
+  return {
+    ordinaryIncome: ordinaryIncome,
+    ltcgIncome: ltcgIncome,
+    taxableSocialSecurity: taxableSocialSecurity,
+    standardDeduction: inflatedStdDeduction,
+    taxableOrdinaryIncome: taxableOrdinaryIncome,
+    ordinaryTax: ordinaryTax,
+    ltcgTax: ltcgTax,
+    totalEstimatedTax: totalEstimatedTax
+  };
+}
+
 function calcProjection(items, settings) {
   const result = [];
   const endYear = settings.startYear + settings.projectionYears - 1;
@@ -417,12 +524,65 @@ function calcProjection(items, settings) {
       }
     }
 
-    const netWorth =
+    const grossNetWorth =
       byType.bank + byType.investments + byType.property +
       byType.vehicles + byType.rentals +
       byType.inflows - byType.outflows;
 
-    result.push({ year, netWorth, byType });
+    // Compute tax inputs for this year
+    let traditional401kWithdrawals = 0;
+    let bankInterest = 0;
+    let ltcgIncome = 0;
+
+    for (const item of items) {
+      const effectiveEndYear = item.endYear == null ? endYear : item.endYear;
+      const active = year >= item.startYear && year <= effectiveEndYear;
+      if (!active) continue;
+
+      // Traditional 401(k) withdrawals (in withdrawal phase)
+      if (item.category === 'Traditional 401(k)' && item.retirement401k &&
+          item.retirement401k.withdrawalStartYear != null && year >= item.retirement401k.withdrawalStartYear) {
+        let annualWithdraw = 0;
+        if (item.withdrawalAmount != null && item.withdrawalAmount > 0) {
+          annualWithdraw = item.withdrawalFrequency === 'monthly'
+            ? item.withdrawalAmount * 12
+            : item.withdrawalAmount;
+        }
+        traditional401kWithdrawals += annualWithdraw;
+      }
+
+      // Bank interest: balance * rate/100 for bank items with rate > 0
+      if (item.type === 'bank' && item.rate > 0) {
+        const balance = balanceCache[item.id] && balanceCache[item.id][year] != null
+          ? balanceCache[item.id][year]
+          : (item.endYear == null
+              ? item.amount * Math.pow(1 + item.rate / 100, year - item.startYear)
+              : calcItemValue(item, year));
+        bankInterest += balance * item.rate / 100;
+      }
+
+      // LTCG income: annual withdrawals from Investment items with subcategory Stocks or ETFs
+      if (item.type === 'investments' && (item.category === 'Stocks' || item.category === 'ETFs') &&
+          item.withdrawalAmount != null && item.withdrawalAmount > 0) {
+        ltcgIncome += item.withdrawalFrequency === 'monthly'
+          ? item.withdrawalAmount * 12
+          : item.withdrawalAmount;
+      }
+    }
+
+    const taxInputs = {
+      year: year,
+      traditional401kWithdrawals: traditional401kWithdrawals,
+      bankInterest: bankInterest,
+      ltcgIncome: ltcgIncome,
+      annualSocialSecurityBenefit: (settings.tax && settings.tax.annualSocialSecurityBenefit) || 0,
+      socialSecurityStartYear: (settings.tax && settings.tax.socialSecurityStartYear) || null
+    };
+
+    const tax = calcTax(taxInputs, settings);
+    const netWorth = grossNetWorth - tax.totalEstimatedTax;
+
+    result.push({ year, netWorth, byType, tax });
   }
 
   return result;
@@ -1328,7 +1488,7 @@ if (typeof document !== 'undefined') {
 // =============================================================================
 
 if (typeof module !== 'undefined') {
-  module.exports = { formatMoney, calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, calcProjection, calcStats,
+  module.exports = { formatMoney, calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, calcTax, inflateBrackets, applyMarginalBrackets, determineLTCGTax, calcProjection, calcStats,
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
     STORAGE_KEYS, MAX_ITEMS, TAX_BRACKETS_2025, loadState, saveItems, saveSettings,
     exportToXlsx, importFromXlsx,

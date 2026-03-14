@@ -91,7 +91,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - File: `tests/calculator.test.js`
 
 - [ ] 7. Implement US federal tax calculation
-  - [~] 7.1 Implement `calcTax(taxInputs, settings)` in `script.js`
+  - [x] 7.1 Implement `calcTax(taxInputs, settings)` in `script.js`
     - Inflate brackets and standard deduction by `(1 + bracketInflationRate/100) ^ (year - 2025)`
     - Compute ordinary income: Traditional 401(k) withdrawals + bank interest + taxable Social Security
     - Compute Social Security taxable portion using provisional income and inflation-adjusted thresholds
@@ -100,11 +100,11 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Return `TaxResult` object with all breakdown fields
     - Exclude Roth 401(k) withdrawals from taxable income
     - _Requirements: 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.11, 11.12, 11.14_
-  - [~] 7.2 Wire `calcTax` into `calcProjection` to deduct tax from net worth each year
+  - [x] 7.2 Wire `calcTax` into `calcProjection` to deduct tax from net worth each year
     - Add `tax: TaxResult` to each `ProjectionYear`
     - Net worth = gross net worth - totalEstimatedTax
     - _Requirements: 11.13, 11.14_
-  - [~] 7.3 Write unit tests for tax calculation in `tests/calculator.test.js`
+  - [x] 7.3 Write unit tests for tax calculation in `tests/calculator.test.js`
     - Test known income scenario with expected tax output
     - Test bracket inflation for a future year
     - Test Social Security taxable portion at each threshold

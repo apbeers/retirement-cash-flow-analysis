@@ -4,7 +4,7 @@
 // =============================================================================
 
 import * as fc from 'fast-check';
-import { calcItemValue, calcItemBalance, calcLoanSchedule, calc401kBalance, calcProjection, calcStats, ASSET_TYPES } from '../script.js';
+import { calcItemValue, calcItemBalance, calcLoanSchedule, calc401kBalance, calcTax, calcProjection, calcStats, ASSET_TYPES, TAX_BRACKETS_2025 } from '../script.js';
 
 // --- Arbitraries ---
 
@@ -274,14 +274,15 @@ describe('P8: calcProjection length and year range', () => {
 describe('P10: calcProjection net worth formula', () => {
   // Validates: Requirements 3.4
 
-  it('netWorth = assets + inflows - outflows for each year', () => {
+  it('netWorth = assets + inflows - outflows - tax for each year', () => {
     fc.assert(
       fc.property(fc.array(itemArb, { minLength: 0, maxLength: 10 }), settingsArb, (items, settings) => {
         const result = calcProjection(items, settings);
         for (const row of result) {
           const { bank, investments, property, vehicles, rentals, inflows, outflows } = row.byType;
-          const expected = bank + investments + property + vehicles + rentals + inflows - outflows;
-          expect(row.netWorth).toBeCloseTo(expected, 5);
+          const grossNetWorth = bank + investments + property + vehicles + rentals + inflows - outflows;
+          const taxDeduction = row.tax ? row.tax.totalEstimatedTax : 0;
+          expect(row.netWorth).toBeCloseTo(grossNetWorth - taxDeduction, 5);
         }
       })
     );
@@ -778,5 +779,197 @@ describe('calcProjection with 401(k) items', () => {
     expect(result[0].byType.investments).toBeCloseTo(10000);
     // Year 2026: 10000 * (1.10)^1 = 11000
     expect(result[1].byType.investments).toBeCloseTo(11000);
+  });
+});
+
+// --- calcTax unit tests ---
+
+describe('calcTax', () => {
+  const singleSettings = {
+    tax: { filingStatus: 'single', bracketInflationRate: 2.5 }
+  };
+
+  const mfjSettings = {
+    tax: { filingStatus: 'married_filing_jointly', bracketInflationRate: 2.5 }
+  };
+
+  it('computes correct tax for $50,000 ordinary income, single filer, 2025', () => {
+    // $50,000 from Traditional 401(k) withdrawals, single filer, year 2025
+    // Standard deduction (single) = $15,000
+    // Taxable ordinary income = $50,000 - $15,000 = $35,000
+    // 10% on first $11,925 = $1,192.50
+    // 12% on ($35,000 - $11,925) = $23,075 * 0.12 = $2,769.00
+    // Total ordinary tax = $3,961.50
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 50000,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 0,
+      socialSecurityStartYear: null
+    }, singleSettings);
+
+    expect(result.ordinaryIncome).toBe(50000);
+    expect(result.standardDeduction).toBe(15000);
+    expect(result.taxableOrdinaryIncome).toBe(35000);
+    expect(result.ordinaryTax).toBeCloseTo(3961.50, 2);
+    expect(result.ltcgTax).toBe(0);
+    expect(result.totalEstimatedTax).toBeCloseTo(3961.50, 2);
+  });
+
+  it('inflates brackets correctly for year 2030 with 2.5% inflation', () => {
+    // inflationFactor = (1.025)^5
+    const inflationFactor = Math.pow(1.025, 5);
+    const expectedStdDeduction = Math.round(15000 * inflationFactor);
+    const expectedFirstBracketUpTo = Math.round(11925 * inflationFactor);
+
+    // Use a small income to verify the standard deduction and first bracket
+    const result = calcTax({
+      year: 2030,
+      traditional401kWithdrawals: 30000,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 0,
+      socialSecurityStartYear: null
+    }, singleSettings);
+
+    expect(result.standardDeduction).toBe(expectedStdDeduction);
+    // Taxable ordinary income = 30000 - inflated std deduction
+    const expectedTaxableOrdinary = Math.max(0, 30000 - expectedStdDeduction);
+    expect(result.taxableOrdinaryIncome).toBe(expectedTaxableOrdinary);
+
+    // Verify tax uses inflated brackets: all taxable income falls in 10% bracket
+    // expectedFirstBracketUpTo should be ~13,492 and taxable income ~13,029
+    // So all income taxed at 10%
+    expect(result.ordinaryTax).toBeCloseTo(expectedTaxableOrdinary * 0.10, 2);
+  });
+
+  it('Social Security: 0% taxable when provisional income below low threshold', () => {
+    // Single filer, 2025: low threshold = $25,000
+    // Ordinary income before SS = $10,000, SS benefit = $20,000
+    // Provisional income = $10,000 + 0.5 * $20,000 = $20,000 < $25,000
+    // → 0% of SS is taxable
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 10000,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 20000,
+      socialSecurityStartYear: 2025
+    }, singleSettings);
+
+    expect(result.taxableSocialSecurity).toBe(0);
+    expect(result.ordinaryIncome).toBe(10000);
+  });
+
+  it('Social Security: 50% taxable when provisional income between low and high threshold', () => {
+    // Single filer, 2025: low = $25,000, high = $34,000
+    // Ordinary income before SS = $20,000, SS benefit = $20,000
+    // Provisional income = $20,000 + 0.5 * $20,000 = $30,000
+    // $25,000 < $30,000 < $34,000 → 50% of SS is taxable
+    // Taxable SS = 0.50 * $20,000 = $10,000
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 20000,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 20000,
+      socialSecurityStartYear: 2025
+    }, singleSettings);
+
+    expect(result.taxableSocialSecurity).toBe(10000);
+    expect(result.ordinaryIncome).toBe(30000); // 20000 + 10000
+  });
+
+  it('Social Security: 85% taxable when provisional income above high threshold', () => {
+    // Single filer, 2025: high = $34,000
+    // Ordinary income before SS = $40,000, SS benefit = $24,000
+    // Provisional income = $40,000 + 0.5 * $24,000 = $52,000 > $34,000
+    // → 85% of SS is taxable
+    // Taxable SS = 0.85 * $24,000 = $20,400
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 40000,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 24000,
+      socialSecurityStartYear: 2025
+    }, singleSettings);
+
+    expect(result.taxableSocialSecurity).toBeCloseTo(20400);
+    expect(result.ordinaryIncome).toBeCloseTo(60400); // 40000 + 20400
+  });
+
+  it('excludes Roth 401(k) withdrawals from taxable income via calcProjection', () => {
+    // A Roth 401(k) in withdrawal phase should NOT generate taxInputs
+    const items = [{
+      id: 'roth-tax-test', type: 'investments', category: 'Roth 401(k)',
+      name: 'My Roth', amount: 100000, rate: 0, startYear: 2025, endYear: 2060,
+      withdrawalAmount: 10000, withdrawalFrequency: 'annual',
+      retirement401k: {
+        employeeContribution: 0,
+        employerMatchPct: 0,
+        employerMatchCapPct: 0,
+        annualSalary: 0,
+        vestingYears: 0,
+        withdrawalStartYear: 2025
+      }
+    }];
+    const settings = {
+      startYear: 2025,
+      projectionYears: 1,
+      tax: { filingStatus: 'single', bracketInflationRate: 2.5 }
+    };
+    const result = calcProjection(items, settings);
+
+    // Roth withdrawals should not appear as ordinary income or LTCG
+    expect(result[0].tax.ordinaryIncome).toBe(0);
+    expect(result[0].tax.ltcgIncome).toBe(0);
+    expect(result[0].tax.totalEstimatedTax).toBe(0);
+  });
+
+  it('zero income produces zero tax', () => {
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 0,
+      bankInterest: 0,
+      ltcgIncome: 0,
+      annualSocialSecurityBenefit: 0,
+      socialSecurityStartYear: null
+    }, singleSettings);
+
+    expect(result.ordinaryIncome).toBe(0);
+    expect(result.ltcgIncome).toBe(0);
+    expect(result.taxableSocialSecurity).toBe(0);
+    expect(result.taxableOrdinaryIncome).toBe(0);
+    expect(result.ordinaryTax).toBe(0);
+    expect(result.ltcgTax).toBe(0);
+    expect(result.totalEstimatedTax).toBe(0);
+  });
+
+  it('LTCG stacks on top of ordinary income for bracket determination', () => {
+    // Single filer, 2025: LTCG brackets: 0% up to $48,350, 15% up to $533,400
+    // Taxable ordinary income = $40,000 (fills up to $40,000 of LTCG bracket space)
+    // LTCG income = $20,000
+    // LTCG stacks: $40,000 + $20,000 = $60,000 total
+    // First $8,350 of LTCG at 0% (fills $40,000 to $48,350)
+    // Remaining $11,650 of LTCG at 15%
+    // LTCG tax = $8,350 * 0.00 + $11,650 * 0.15 = $1,747.50
+
+    // To get taxable ordinary income of exactly $40,000:
+    // ordinary income = $40,000 + $15,000 (std deduction) = $55,000
+    const result = calcTax({
+      year: 2025,
+      traditional401kWithdrawals: 55000,
+      bankInterest: 0,
+      ltcgIncome: 20000,
+      annualSocialSecurityBenefit: 0,
+      socialSecurityStartYear: null
+    }, singleSettings);
+
+    expect(result.taxableOrdinaryIncome).toBe(40000);
+    expect(result.ltcgIncome).toBe(20000);
+    expect(result.ltcgTax).toBeCloseTo(1747.50, 2);
+    expect(result.totalEstimatedTax).toBeCloseTo(result.ordinaryTax + 1747.50, 2);
   });
 });
