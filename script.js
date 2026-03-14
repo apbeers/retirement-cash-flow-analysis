@@ -815,6 +815,36 @@ function _showStorageToast(message) {
   }
 }
 
+function _showInfoAlert(message) {
+  const mainContent = document.getElementById('main-content');
+  if (!mainContent) return;
+
+  const alert = document.createElement('div');
+  alert.className = 'alert alert-info alert-dismissible fade show';
+  alert.setAttribute('role', 'alert');
+  alert.innerHTML =
+    _escapeHtml(message) +
+    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+
+  // Prepend after the header area
+  const header = document.getElementById('main-header');
+  if (header && header.nextSibling) {
+    mainContent.insertBefore(alert, header.nextSibling);
+  } else {
+    mainContent.prepend(alert);
+  }
+
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    if (typeof bootstrap !== 'undefined') {
+      const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+      bsAlert.close();
+    } else {
+      alert.remove();
+    }
+  }, 5000);
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     // --- 11.1: Sidebar navigation ---
@@ -963,6 +993,37 @@ if (typeof document !== 'undefined') {
     // --- 11.2: Apply loaded theme and initialize UI ---
     applyTheme(settings.theme);
     render();
+
+    // --- 12.1: Export Excel ---
+    const exportBtn = document.getElementById('btn-export');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        exportToXlsx(items);
+      });
+    }
+
+    // --- 12.2: Import Excel ---
+    const importFile = document.getElementById('import-file');
+    if (importFile) {
+      importFile.addEventListener('change', () => {
+        const file = importFile.files[0];
+        if (!file) return;
+        importFromXlsx(file)
+          .then(result => {
+            items = result.items;
+            saveItems(items);
+            render();
+            importFile.value = '';
+            if (result.skipped > 0) {
+              _showInfoAlert('Import complete. ' + result.skipped + ' row(s) were skipped due to missing required fields.');
+            }
+          })
+          .catch(err => {
+            importFile.value = '';
+            _showStorageToast(err.message || 'Only .xlsx files are supported. No data was changed.');
+          });
+      });
+    }
   });
 }
 
@@ -980,7 +1041,7 @@ if (typeof module !== 'undefined') {
     initiateDelete, confirmDelete, cancelDelete,
     _handleSaveItem, _generateUUID, _showModalError, _escapeHtml,
     render, renderItemList, renderEmptyState, updateBadges, updateStats, updateChart,
-    applyTheme, _showStorageToast,
+    applyTheme, _showStorageToast, _showInfoAlert,
     get activeSection() { return activeSection; },
     set activeSection(v) { activeSection = v; },
     get chartInstance() { return chartInstance; },

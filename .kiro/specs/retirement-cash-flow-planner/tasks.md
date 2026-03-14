@@ -181,15 +181,15 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - Wrap `localStorage.setItem` in try/catch; show toast on quota exceeded
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 12. Import/export wiring and error toasts
-  - [~] 12.1 Wire "Export Excel" button to `exportToXlsx(items)` in `script.js`
+- [x] 12. Import/export wiring and error toasts
+  - [x] 12.1 Wire "Export Excel" button to `exportToXlsx(items)` in `script.js`
     - _Requirements: 8.1_
-  - [~] 12.2 Wire file input to `importFromXlsx(file)` in `script.js`
+  - [x] 12.2 Wire file input to `importFromXlsx(file)` in `script.js`
     - On success: call `saveItems`, call `render`, show skipped-rows alert if `skipped > 0`
     - On non-xlsx: show Bootstrap toast "Only .xlsx files are supported. No data was changed."
     - _Requirements: 8.2, 8.3, 8.5_
 
-- [~] 13. Final checkpoint — all tests pass, app fully wired
+- [x] 13. Final checkpoint — all tests pass, app fully wired
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
