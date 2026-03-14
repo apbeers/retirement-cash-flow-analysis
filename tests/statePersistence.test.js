@@ -201,10 +201,12 @@ describe('loadState() merges tax settings with defaults when fields are missing/
   });
 
   it('uses all defaults when settings are corrupt JSON', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     localStorage.setItem('rcfp_settings', '{not valid json!!!');
     const loaded = loadState();
     expect(loaded.settings.tax).toEqual(DEFAULT_SETTINGS.tax);
     expect(loaded.settings.startYear).toBe(DEFAULT_SETTINGS.startYear);
+    spy.mockRestore();
   });
 
   it('uses all defaults when tax is null', () => {
