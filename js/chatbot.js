@@ -4,6 +4,7 @@
 
 import { state } from './appState.js';
 import { formatMoney } from './prettyPrinter.js';
+import { calcProjection } from './calculator.js';
 
 var MODEL_ID = 'Qwen2.5-3B-Instruct-q4f16_1-MLC';
 
@@ -74,7 +75,20 @@ export function assembleFinancialContext() {
     }
   }
   lines.push('');
-  lines.push('INSTRUCTIONS: Answer the user\'s question using ONLY the data above. Be specific with numbers. If you need to calculate, show the math briefly.');
+  // Pre-computed projection table so the model can look up values directly
+  if (state.items.length > 0) {
+    var proj = calcProjection(state.items, state.settings);
+    lines.push('PROJECTION TABLE (pre-computed, use for lookups):');
+    lines.push('Year | Net Worth | Bank | Investments | Property | Vehicles | Rentals | Inflows | Outflows | Est. Tax');
+    for (var p = 0; p < proj.length; p++) {
+      var row = proj[p];
+      var bt = row.byType;
+      var tax = row.tax ? row.tax.totalEstimatedTax : 0;
+      lines.push(row.year + ' | ' + formatMoney(Math.round(row.netWorth)) + ' | ' + formatMoney(Math.round(bt.bank)) + ' | ' + formatMoney(Math.round(bt.investments)) + ' | ' + formatMoney(Math.round(bt.property)) + ' | ' + formatMoney(Math.round(bt.vehicles)) + ' | ' + formatMoney(Math.round(bt.rentals)) + ' | ' + formatMoney(Math.round(bt.inflows)) + ' | ' + formatMoney(Math.round(bt.outflows)) + ' | ' + formatMoney(Math.round(tax)));
+    }
+    lines.push('');
+  }
+  lines.push('INSTRUCTIONS: Answer the user\'s question using ONLY the data above. For questions about net worth or balances in a specific year, look up the value in the PROJECTION TABLE. Be specific with numbers. Do not try to calculate — use the table.');
   return lines.join('\n');
 }
 
