@@ -771,6 +771,202 @@ function cancelDelete(index) {
 }
 
 // =============================================================================
+// EventHandlers — sidebar navigation, settings panel, DOMContentLoaded init
+// =============================================================================
+
+function applyTheme(theme) {
+  const t = theme || DEFAULT_SETTINGS.theme;
+  document.documentElement.style.setProperty('--bg', t.background || DEFAULT_SETTINGS.theme.background);
+  document.documentElement.style.setProperty('--surface', t.surface || DEFAULT_SETTINGS.theme.surface);
+  document.documentElement.style.setProperty('--text', t.text || DEFAULT_SETTINGS.theme.text);
+  document.documentElement.style.setProperty('--accent', t.accent || DEFAULT_SETTINGS.theme.accent);
+  if (t.fontFamily) document.body.style.fontFamily = t.fontFamily;
+  if (t.fontSize) document.body.style.fontSize = t.fontSize + 'px';
+}
+
+function _showStorageToast(message) {
+  // Create a Bootstrap toast dynamically if one doesn't exist
+  let toastContainer = document.getElementById('rcfp-toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'rcfp-toast-container';
+    toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    toastContainer.style.zIndex = '9999';
+    document.body.appendChild(toastContainer);
+  }
+
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast align-items-center text-bg-danger border-0';
+  toastEl.setAttribute('role', 'alert');
+  toastEl.setAttribute('aria-live', 'assertive');
+  toastEl.setAttribute('aria-atomic', 'true');
+  toastEl.innerHTML =
+    '<div class="d-flex">' +
+      '<div class="toast-body">' + _escapeHtml(message) + '</div>' +
+      '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' +
+    '</div>';
+
+  toastContainer.appendChild(toastEl);
+
+  if (typeof bootstrap !== 'undefined') {
+    const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- 11.1: Sidebar navigation ---
+    const navLinks = document.querySelectorAll('#sidebar .nav-link[data-section]');
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        activeSection = link.dataset.section;
+        render();
+      });
+    });
+
+    // --- 11.1: Add item button ---
+    const addBtn = document.getElementById('btn-add-item');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        openAddModal(activeSection);
+      });
+    }
+
+    // --- 11.2: Populate settings inputs with current values ---
+    const chartTitleInput = document.getElementById('setting-chartTitle');
+    if (chartTitleInput) chartTitleInput.value = settings.chartTitle || '';
+
+    const startYearInput = document.getElementById('setting-startYear');
+    if (startYearInput) startYearInput.value = settings.startYear || DEFAULT_SETTINGS.startYear;
+
+    const projectionYearsInput = document.getElementById('setting-projectionYears');
+    if (projectionYearsInput) projectionYearsInput.value = settings.projectionYears || DEFAULT_SETTINGS.projectionYears;
+
+    const bgInput = document.getElementById('setting-bg');
+    if (bgInput) bgInput.value = (settings.theme && settings.theme.background) || DEFAULT_SETTINGS.theme.background;
+
+    const surfaceInput = document.getElementById('setting-surface');
+    if (surfaceInput) surfaceInput.value = (settings.theme && settings.theme.surface) || DEFAULT_SETTINGS.theme.surface;
+
+    const textInput = document.getElementById('setting-text');
+    if (textInput) textInput.value = (settings.theme && settings.theme.text) || DEFAULT_SETTINGS.theme.text;
+
+    const accentInput = document.getElementById('setting-accent');
+    if (accentInput) accentInput.value = (settings.theme && settings.theme.accent) || DEFAULT_SETTINGS.theme.accent;
+
+    const fontFamilyInput = document.getElementById('setting-fontFamily');
+    if (fontFamilyInput) fontFamilyInput.value = (settings.theme && settings.theme.fontFamily) || DEFAULT_SETTINGS.theme.fontFamily;
+
+    const fontSizeInput = document.getElementById('setting-fontSize');
+    if (fontSizeInput) fontSizeInput.value = (settings.theme && settings.theme.fontSize) || DEFAULT_SETTINGS.theme.fontSize;
+
+    // --- 11.2: Wire Chart Title ---
+    if (chartTitleInput) {
+      chartTitleInput.addEventListener('input', () => {
+        settings.chartTitle = chartTitleInput.value;
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+        render();
+      });
+    }
+
+    // --- 11.2: Wire Start Year ---
+    if (startYearInput) {
+      startYearInput.addEventListener('change', () => {
+        settings.startYear = Number(startYearInput.value);
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+        render();
+      });
+    }
+
+    // --- 11.2: Wire Projection Years ---
+    if (projectionYearsInput) {
+      projectionYearsInput.addEventListener('change', () => {
+        settings.projectionYears = Number(projectionYearsInput.value);
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+        render();
+      });
+    }
+
+    // --- 11.2: Wire color pickers ---
+    const colorMap = {
+      'setting-bg':      'background',
+      'setting-surface': 'surface',
+      'setting-text':    'text',
+      'setting-accent':  'accent'
+    };
+    const cssPropMap = {
+      background: '--bg',
+      surface:    '--surface',
+      text:       '--text',
+      accent:     '--accent'
+    };
+
+    Object.entries(colorMap).forEach(([inputId, themeKey]) => {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.addEventListener('input', () => {
+        if (!settings.theme) settings.theme = Object.assign({}, DEFAULT_SETTINGS.theme);
+        settings.theme[themeKey] = input.value;
+        document.documentElement.style.setProperty(cssPropMap[themeKey], input.value);
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+        render();
+      });
+    });
+
+    // --- 11.2: Wire Font Family ---
+    if (fontFamilyInput) {
+      fontFamilyInput.addEventListener('input', () => {
+        if (!settings.theme) settings.theme = Object.assign({}, DEFAULT_SETTINGS.theme);
+        settings.theme.fontFamily = fontFamilyInput.value;
+        document.body.style.fontFamily = fontFamilyInput.value;
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+      });
+    }
+
+    // --- 11.2: Wire Font Size ---
+    if (fontSizeInput) {
+      fontSizeInput.addEventListener('change', () => {
+        if (!settings.theme) settings.theme = Object.assign({}, DEFAULT_SETTINGS.theme);
+        settings.theme.fontSize = Number(fontSizeInput.value);
+        document.body.style.fontSize = fontSizeInput.value + 'px';
+        try {
+          saveSettings(settings);
+        } catch (err) {
+          _showStorageToast('Storage quota exceeded. Please export your data and clear some space.');
+        }
+      });
+    }
+
+    // --- 11.2: Apply loaded theme and initialize UI ---
+    applyTheme(settings.theme);
+    render();
+  });
+}
+
+// =============================================================================
 // Exports (for test environment)
 // =============================================================================
 
@@ -784,6 +980,7 @@ if (typeof module !== 'undefined') {
     initiateDelete, confirmDelete, cancelDelete,
     _handleSaveItem, _generateUUID, _showModalError, _escapeHtml,
     render, renderItemList, renderEmptyState, updateBadges, updateStats, updateChart,
+    applyTheme, _showStorageToast,
     get activeSection() { return activeSection; },
     set activeSection(v) { activeSection = v; },
     get chartInstance() { return chartInstance; },

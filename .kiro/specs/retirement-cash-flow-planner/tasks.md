@@ -170,12 +170,12 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - Calls `renderItemList()`, `updateChart()`, `updateStats()`, `updateBadges()` in sequence
     - _Requirements: 3.6, 4.3, 5.4, 6.3_
 
-- [ ] 11. Sidebar navigation and settings panel
-  - [~] 11.1 Implement sidebar click event handlers in `script.js`
+- [x] 11. Sidebar navigation and settings panel
+  - [x] 11.1 Implement sidebar click event handlers in `script.js`
     - Track active section; on click, update active state, call `render`
     - Show context-sensitive "Add [Item Type]" button in section header for non-Dashboard sections
     - _Requirements: 6.1, 6.4, 6.6_
-  - [~] 11.2 Implement settings panel inputs in `script.js`
+  - [x] 11.2 Implement settings panel inputs in `script.js`
     - Wire Chart Title, Start Year, and Projection Years inputs to `saveSettings` + `render` on change
     - Wire colour pickers and font controls to CSS custom properties + `saveSettings` on change
     - Wrap `localStorage.setItem` in try/catch; show toast on quota exceeded
