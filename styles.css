@@ -286,3 +286,92 @@ body {
   color: var(--accent);
   font-size: 0.85rem;
 }
+
+
+/* Mobile responsive */
+@media (max-width: 767.98px) {
+  #sidebar,
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #sidebar .nav,
+  .sidebar .nav {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  #sidebar .nav-link,
+  .sidebar .nav-link {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .nav-section-label {
+    display: none;
+  }
+
+  .sidebar-brand {
+    font-size: 0.95rem;
+  }
+
+  #sidebar .badge,
+  .sidebar .badge {
+    font-size: 0.6rem;
+  }
+
+  #main-content,
+  main {
+    padding: 1rem !important;
+    min-height: auto;
+  }
+
+  .item-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .item-row .item-value {
+    min-width: auto;
+  }
+
+  .item-row .item-action-area {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  #main-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+  }
+
+  #main-header .d-flex {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .loan-details-table-wrapper {
+    overflow-x: auto;
+  }
+
+  #projectionChart {
+    height: 200px !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .row.g-3 > .col-md-4 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
