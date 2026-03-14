@@ -15,6 +15,7 @@ This repo has structured context to help you work efficiently. Read this file fi
 | File | Inclusion | What it provides |
 |------|-----------|-----------------|
 | `project-context.md` | always | Build/test commands, module system, key files, conventions |
+| `architecture-guide.md` | manual (#architecture-guide) | Full architecture diagram, data schema, module reference, task recipes |
 | `concurrency-guide.md` | manual (#concurrency-guide) | Safe parallel edit zones, conflict map, change impact matrix |
 | `feature-catalog.md` | manual (#feature-catalog) | Every feature in the app, what it does, where the code lives |
 | `calculator-guide.md` | auto (when calculator.js is read) | Calculator function signatures, cache pattern |
