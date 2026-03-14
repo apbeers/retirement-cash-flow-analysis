@@ -162,10 +162,16 @@ export function toggleChatPanel() {
 
   if (panel.style.display !== 'none' && panel.style.display !== '') {
     panel.style.display = 'none';
+    var main = document.getElementById('main-content');
+    if (main) main.style.marginRight = '';
     return;
   }
 
   panel.style.display = 'flex';
+
+  // Shift main content to make room for chatbot panel
+  var main = document.getElementById('main-content');
+  if (main) main.style.marginRight = '380px';
 
   if (_firstOpen) {
     _firstOpen = false;
