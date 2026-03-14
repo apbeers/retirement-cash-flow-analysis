@@ -278,17 +278,16 @@ export function toggleChatPanel() {
   var panel = document.getElementById('chatbot-panel');
   if (!panel) return;
 
-  if (panel.style.display !== 'none' && panel.style.display !== '') {
+  var isOpen = panel.style.display === 'flex';
+  var main = document.getElementById('main-content');
+
+  if (isOpen) {
     panel.style.display = 'none';
-    var main = document.getElementById('main-content');
     if (main) main.style.marginRight = '';
     return;
   }
 
   panel.style.display = 'flex';
-
-  // Shift main content to make room for chatbot panel
-  var main = document.getElementById('main-content');
   if (main) main.style.marginRight = '380px';
 
   if (_firstOpen) {
