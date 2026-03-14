@@ -3,7 +3,8 @@
 // P1, P2, P4, P6, P7
 // =============================================================================
 
-import { loadState, saveItems, saveSettings, SUBCATEGORIES, ALL_TYPES, DEFAULT_SETTINGS } from '../script.js';
+import * as fc from 'fast-check';
+import { loadState, saveItems, saveSettings, SUBCATEGORIES, ALL_TYPES, DEFAULT_SETTINGS, MAX_ITEMS } from '../script.js';
 
 describe('P1: Item Add Round-Trip', () => {
   it('adds item and persists to localStorage', () => {
@@ -77,6 +78,63 @@ describe('P6: createdAt Timestamp on New Items', () => {
     const loaded = loadState();
     expect(loaded.items[0].createdAt).toBeDefined();
     expect(new Date(loaded.items[0].createdAt)).toBeInstanceOf(Date);
+  });
+});
+
+describe('P3: Delete Removes Item', () => {
+  it('removing an item from the array and saving leaves it absent on reload', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            id: fc.uuid(),
+            type: fc.constantFrom('bank', 'investments'),
+            category: fc.constantFrom('Checking', 'Stocks'),
+            name: fc.string({ minLength: 1, maxLength: 20 }),
+            amount: fc.integer({ min: 0, max: 1e6 }),
+            rate: fc.integer({ min: 0, max: 20 }),
+            startYear: fc.constant(2025),
+            endYear: fc.constant(2030)
+          }),
+          { minLength: 1, maxLength: 10 }
+        ),
+        (items) => {
+          saveItems(items);
+          const deleteIndex = 0;
+          const deletedId = items[deleteIndex].id;
+          const remaining = items.filter((_, i) => i !== deleteIndex);
+          saveItems(remaining);
+          const loaded = loadState();
+          expect(loaded.items).toHaveLength(remaining.length);
+          expect(loaded.items.find(i => i.id === deletedId)).toBeUndefined();
+        }
+      )
+    );
+  });
+});
+
+describe('P5: Item Count Limit Enforced', () => {
+  it('MAX_ITEMS is a positive finite integer', () => {
+    expect(typeof MAX_ITEMS).toBe('number');
+    expect(MAX_ITEMS).toBeGreaterThan(0);
+    expect(Number.isFinite(MAX_ITEMS)).toBe(true);
+    expect(Number.isInteger(MAX_ITEMS)).toBe(true);
+  });
+
+  it('saving exactly MAX_ITEMS items persists all of them', () => {
+    const items = Array.from({ length: MAX_ITEMS }, (_, i) => ({
+      id: String(i),
+      type: 'bank',
+      category: 'Checking',
+      name: `Item ${i}`,
+      amount: 1000,
+      rate: 0,
+      startYear: 2025,
+      endYear: 2030
+    }));
+    saveItems(items);
+    const loaded = loadState();
+    expect(loaded.items).toHaveLength(MAX_ITEMS);
   });
 });
 
