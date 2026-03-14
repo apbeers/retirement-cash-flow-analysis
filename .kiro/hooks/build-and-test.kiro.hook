@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Build & Test",
+  "description": "Runs the build and test suite after source or test files are edited, then reports results",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "js/*.js",
+      "tests/*.js",
+      "index.html",
+      "styles.css"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "node build.js && npx vitest --run"
+  }
+}

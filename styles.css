@@ -22,6 +22,10 @@ body {
   min-height: 100vh;
 }
 
+.text-muted {
+  color: #9e9e9e !important;
+}
+
 /* Sidebar */
 #sidebar {
   width: var(--sidebar-width);
@@ -251,11 +255,15 @@ body {
 /* Tax breakdown panel */
 #taxBreakdownPanel .table {
   font-size: 0.85rem;
+  background-color: transparent;
+  --bs-table-bg: transparent;
+  color: var(--text);
 }
 
 #taxBreakdownPanel .table td {
   border-color: var(--border);
   padding: 0.35rem 0.5rem;
+  color: var(--text);
 }
 
 #taxBreakdownPanel .table .fw-bold td {
