@@ -6,6 +6,36 @@ Live at: GitHub Pages (auto-deployed on push to `main` after tests pass).
 
 ---
 
+## For AI Agents — Start Here
+
+This repo has structured context to help you work efficiently. Read this file first, then use the steering files as needed.
+
+### Available context (in `.kiro/steering/`)
+
+| File | Inclusion | What it provides |
+|------|-----------|-----------------|
+| `project-context.md` | always | Build/test commands, module system, key files, conventions |
+| `concurrency-guide.md` | manual (#concurrency-guide) | Safe parallel edit zones, conflict map, change impact matrix |
+| `feature-catalog.md` | manual (#feature-catalog) | Every feature in the app, what it does, where the code lives |
+| `calculator-guide.md` | auto (when calculator.js is read) | Calculator function signatures, cache pattern |
+| `chatbot-guide.md` | auto (when chatbot.js is read) | Model info, context assembly, token limits |
+| `testing-guide.md` | auto (when tests/ files are read) | Test framework, conventions, known behaviors |
+
+### How to use them
+- `project-context.md` loads automatically on every interaction — you always have build/test/module info
+- File-matched guides load automatically when you read the relevant source files
+- Use `#concurrency-guide` or `#feature-catalog` in chat to pull in manual guides when planning work
+- Each `js/*.js` file has a JSDoc header listing its exports and dependencies — read the header before the body
+
+### Workflow for any change
+1. Read this file for architecture overview
+2. Read the relevant module header (first 10 lines) to understand exports/deps
+3. Make changes
+4. `node build.js && npm test` (127 tests, ~5s)
+5. `git add -A && git commit -m "description" && git push`
+
+---
+
 ## Quick Reference
 
 ```bash
