@@ -34,7 +34,8 @@ export { state } from './js/appState.js';
 // Renderer
 export {
   renderItemList, renderTaxBreakdown, renderEmptyState,
-  updateBadges, updateStats, updateChart, render
+  updateBadges, updateStats, updateChart, render,
+  toggleItemChart
 } from './js/renderer.js';
 
 // Modal Controller

@@ -48,6 +48,7 @@ bundle += 'window.initiateDelete = initiateDelete;\n';
 bundle += 'window.confirmDelete = confirmDelete;\n';
 bundle += 'window.cancelDelete = cancelDelete;\n';
 bundle += 'window.openEditModal = openEditModal;\n';
+bundle += 'window.toggleItemChart = toggleItemChart;\n';
 
 bundle += '\n})();\n';
 

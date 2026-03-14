@@ -2,11 +2,14 @@
 // Renderer
 // =============================================================================
 
-import { ALL_TYPES, MAX_ITEMS, DEFAULT_SETTINGS } from './constants.js';
+import { ALL_TYPES, MAX_ITEMS, DEFAULT_SETTINGS, ASSET_TYPES } from './constants.js';
 import { formatMoney } from './prettyPrinter.js';
-import { calcItemValue, calcLoanSchedule, calcProjection, calcStats } from './calculator.js';
+import { calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, calcProjection, calcStats } from './calculator.js';
 import { TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml } from './uiConstants.js';
 import { state } from './appState.js';
+
+// Track per-item chart instances so we can destroy them on re-render
+var _itemCharts = {};
 
 export function renderItemList() {
   const listArea = document.getElementById('item-list-area');
@@ -58,9 +61,102 @@ export function renderItemList() {
       for (var i = 0; i < ls.length; i++) { var s = ls[i]; tr += '<tr><td>'+s.year+'</td><td>'+formatMoney(s.openingBalance)+'</td><td>'+formatMoney(s.principalPaid)+'</td><td>'+formatMoney(s.interestPaid)+'</td><td>'+formatMoney(s.escrowPaid)+'</td><td>'+formatMoney(s.closingBalance)+'</td></tr>'; }
       ldh = '<div class="loan-details-section"><button class="btn btn-sm btn-outline-secondary loan-details-toggle" onclick="this.parentElement.classList.toggle(\'expanded\')"><i class="bi bi-chevron-down"></i> Loan Details</button><div class="loan-details-table-wrapper"><table class="table table-sm loan-details-table"><thead><tr><th>Year</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Escrow</th><th>Closing</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>';
     }
-    return '<div class="item-row" data-item-index="'+idx+'"><i class="bi '+icon+' item-icon"></i><div class="flex-grow-1"><div class="item-name">'+_escapeHtml(item.name)+'</div><div class="item-meta">'+_escapeHtml(meta)+'</div>'+extra+ldh+'</div><div class="item-value">'+formatMoney(item.amount)+'</div><div class="item-action-area"><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal('+idx+')" title="Edit"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="initiateDelete('+idx+')" title="Delete"><i class="bi bi-trash"></i></button></div></div>';
+    return '<div class="item-row" data-item-index="'+idx+'"><i class="bi '+icon+' item-icon"></i><div class="flex-grow-1"><div class="item-name">'+_escapeHtml(item.name)+'</div><div class="item-meta">'+_escapeHtml(meta)+'</div>'+extra+ldh+'<div class="item-chart-section" id="item-chart-section-'+idx+'" style="display:none"><canvas id="item-chart-'+idx+'" height="150"></canvas></div></div><div class="item-value">'+formatMoney(item.amount)+'</div><div class="item-action-area"><button class="btn btn-sm btn-outline-secondary" onclick="toggleItemChart('+idx+')" title="Chart"><i class="bi bi-graph-up"></i></button><button class="btn btn-sm btn-outline-secondary" onclick="openEditModal('+idx+')" title="Edit"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="initiateDelete('+idx+')" title="Delete"><i class="bi bi-trash"></i></button></div></div>';
   });
   listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
+}
+
+export function toggleItemChart(idx) {
+  var section = document.getElementById('item-chart-section-' + idx);
+  if (!section) return;
+
+  // Toggle visibility
+  if (section.style.display !== 'none') {
+    section.style.display = 'none';
+    if (_itemCharts[idx]) { _itemCharts[idx].destroy(); delete _itemCharts[idx]; }
+    return;
+  }
+  section.style.display = '';
+
+  var item = state.items[idx];
+  if (!item) return;
+
+  var startYear = state.settings.startYear;
+  var projEnd = startYear + state.settings.projectionYears - 1;
+  var effectiveEnd = item.endYear == null ? projEnd : Math.min(item.endYear, projEnd);
+  var effectiveStart = Math.max(item.startYear, startYear);
+
+  var years = [];
+  var values = [];
+  var balanceCache = {};
+
+  var is401k = (item.category === 'Traditional 401(k)' || item.category === 'Roth 401(k)') && item.retirement401k;
+  var hasContribOrWithdraw = (item.contributionAmount > 0) || (item.withdrawalAmount > 0);
+  var hasLoan = item.loan && item.loan.loanAmount > 0;
+  var loanSchedule = hasLoan ? calcLoanSchedule(item.loan, item.startYear, projEnd) : null;
+
+  for (var y = effectiveStart; y <= effectiveEnd; y++) {
+    years.push(y);
+    var val = 0;
+
+    if (item.type === 'inflows' || item.type === 'outflows') {
+      val = item.amount;
+    } else if (is401k) {
+      val = calc401kBalance(item, y, balanceCache, projEnd);
+    } else if (ASSET_TYPES.includes(item.type) && hasContribOrWithdraw) {
+      val = calcItemBalance(item, y, balanceCache, projEnd);
+    } else if (hasLoan && loanSchedule) {
+      var assetVal = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
+      var entry = loanSchedule.find(function(e) { return e.year === y; });
+      val = assetVal - (entry ? entry.closingBalance : 0);
+    } else {
+      val = item.amount * Math.pow(1 + item.rate / 100, y - item.startYear);
+    }
+    values.push(val);
+  }
+
+  var canvas = document.getElementById('item-chart-' + idx);
+  if (!canvas) return;
+
+  if (_itemCharts[idx]) { _itemCharts[idx].destroy(); }
+
+  _itemCharts[idx] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [{
+        label: item.name,
+        data: values,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return formatMoney(ctx.parsed.y); }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#9e9e9e', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: {
+          ticks: {
+            color: '#9e9e9e',
+            callback: function(v) { return formatMoney(v); }
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
 }
 
 export function renderTaxBreakdown() {
