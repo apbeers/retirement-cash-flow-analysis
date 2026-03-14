@@ -256,7 +256,7 @@ async function initEngine() {
         var txt = document.getElementById('chatbot-progress-text');
         var pct = Math.round((progress.progress || 0) * 100);
         if (bar) bar.style.width = pct + '%';
-        if (txt) txt.textContent = 'Loading model\u2026 ' + pct + '%';
+        if (txt) txt.textContent = progress.text || ('Loading model\u2026 ' + pct + '%');
       }
     });
     engineReady = true;
