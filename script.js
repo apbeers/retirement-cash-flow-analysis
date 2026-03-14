@@ -864,18 +864,90 @@ function renderItemList() {
     return;
   }
 
+  const projectionEndYear = settings.startYear + settings.projectionYears - 1;
+
   const rows = filtered.map((item) => {
     // Find the original index in items array for delete targeting
     const originalIndex = items.indexOf(item);
     const icon = TYPE_ICONS[item.type] || 'bi-circle';
     const rateSign = item.rate > 0 ? '+' : '';
-    const meta = item.category + ' · ' + item.startYear + '–' + item.endYear + ' · ' + rateSign + item.rate + '%';
+    const yearRange = item.endYear == null
+      ? (item.startYear + ' – ongoing')
+      : (item.startYear + '–' + item.endYear);
+    const meta = item.category + ' · ' + yearRange + ' · ' + rateSign + item.rate + '%';
+
+    // Build additional metadata lines
+    var extraMeta = '';
+
+    // Contribution info
+    if (item.contributionAmount > 0 && item.contributionFrequency) {
+      var contribFreqLabel = item.contributionFrequency === 'monthly' ? '/mo' : '/yr';
+      extraMeta += '<div class="item-meta">+' + formatMoney(item.contributionAmount) + contribFreqLabel + ' contribution</div>';
+    }
+
+    // Withdrawal info
+    if (item.withdrawalAmount > 0 && item.withdrawalFrequency) {
+      var withdrawFreqLabel = item.withdrawalFrequency === 'monthly' ? '/mo' : '/yr';
+      extraMeta += '<div class="item-meta">\u2212' + formatMoney(item.withdrawalAmount) + withdrawFreqLabel + ' withdrawal</div>';
+    }
+
+    // Loan info
+    if (item.loan) {
+      var schedule = calcLoanSchedule(item.loan, item.startYear, projectionEndYear);
+      var loanBalance = schedule.length > 0 ? schedule[0].closingBalance : item.loan.loanAmount;
+      var assetValue = calcItemValue(item, item.startYear);
+      var equity = Math.max(0, assetValue - loanBalance);
+      extraMeta += '<div class="item-meta">Loan: ' + formatMoney(loanBalance) + ' balance \u00B7 Equity: ' + formatMoney(equity) + '</div>';
+    }
+
+    // 401(k) info
+    if (item.retirement401k) {
+      var r = item.retirement401k;
+      var empContrib = r.employeeContribution || 0;
+      var matchCapAmt = (r.annualSalary || 0) * (r.employerMatchCapPct || 0) / 100;
+      var matchBase = Math.min(empContrib, matchCapAmt);
+      var matchAmt = matchBase * (r.employerMatchPct || 0) / 100;
+      extraMeta += '<div class="item-meta">Employee: ' + formatMoney(empContrib) + '/yr \u00B7 Match: ' + formatMoney(matchAmt) + '/yr</div>';
+    }
+
+    // Loan Details expandable section
+    var loanDetailsHtml = '';
+    if (item.loan) {
+      var loanSchedule = calcLoanSchedule(item.loan, item.startYear, projectionEndYear);
+      var tableRows = '';
+      for (var si = 0; si < loanSchedule.length; si++) {
+        var sy = loanSchedule[si];
+        tableRows += '<tr>' +
+          '<td>' + sy.year + '</td>' +
+          '<td>' + formatMoney(sy.openingBalance) + '</td>' +
+          '<td>' + formatMoney(sy.principalPaid) + '</td>' +
+          '<td>' + formatMoney(sy.interestPaid) + '</td>' +
+          '<td>' + formatMoney(sy.escrowPaid) + '</td>' +
+          '<td>' + formatMoney(sy.closingBalance) + '</td>' +
+        '</tr>';
+      }
+      loanDetailsHtml = '<div class="loan-details-section">' +
+        '<button class="btn btn-sm btn-outline-secondary loan-details-toggle" onclick="this.parentElement.classList.toggle(\'expanded\')">' +
+          '<i class="bi bi-chevron-down"></i> Loan Details' +
+        '</button>' +
+        '<div class="loan-details-table-wrapper">' +
+          '<table class="table table-sm loan-details-table">' +
+            '<thead><tr>' +
+              '<th>Year</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Escrow</th><th>Closing</th>' +
+            '</tr></thead>' +
+            '<tbody>' + tableRows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+    }
 
     return '<div class="item-row" data-item-index="' + originalIndex + '">' +
       '<i class="bi ' + icon + ' item-icon"></i>' +
       '<div class="flex-grow-1">' +
         '<div class="item-name">' + _escapeHtml(item.name) + '</div>' +
         '<div class="item-meta">' + _escapeHtml(meta) + '</div>' +
+        extraMeta +
+        loanDetailsHtml +
       '</div>' +
       '<div class="item-value">' + formatMoney(item.amount) + '</div>' +
       '<div class="item-action-area">' +
@@ -887,6 +959,10 @@ function renderItemList() {
   });
 
   listArea.innerHTML = '<div class="card card-surface">' + rows.join('') + '</div>';
+}
+
+function renderTaxBreakdown(projectionYear, taxSettings) {
+  // Stub — will be implemented in task 12.3
 }
 
 function renderEmptyState() {
@@ -1096,6 +1172,86 @@ function _populateCategorySelect(type) {
   });
 }
 
+// --- Task 11.1: Show/hide field groups based on type and category ---
+
+function _updateFieldGroupVisibility(type, category) {
+  const contributionGroup = document.getElementById('contributionGroup');
+  const withdrawalGroup = document.getElementById('withdrawalGroup');
+  const loanGroup = document.getElementById('loanGroup');
+  const retirement401kGroup = document.getElementById('retirement401kGroup');
+
+  // Contribution group: shown for bank and investments
+  if (contributionGroup) {
+    contributionGroup.style.display = (type === 'bank' || type === 'investments') ? '' : 'none';
+  }
+
+  // Withdrawal group: shown for all asset types
+  if (withdrawalGroup) {
+    withdrawalGroup.style.display = ASSET_TYPES.includes(type) ? '' : 'none';
+  }
+
+  // Loan group: shown for property and vehicles
+  if (loanGroup) {
+    loanGroup.style.display = (type === 'property' || type === 'vehicles') ? '' : 'none';
+  }
+
+  // 401(k) group: shown when category is Traditional 401(k) or Roth 401(k)
+  if (retirement401kGroup) {
+    retirement401kGroup.style.display = (category === 'Traditional 401(k)' || category === 'Roth 401(k)') ? '' : 'none';
+  }
+}
+
+function _clearNewFields() {
+  // Clear contribution fields
+  const contribAmount = document.getElementById('field-contributionAmount');
+  if (contribAmount) contribAmount.value = '';
+  const contribFreq = document.getElementById('field-contributionFrequency');
+  if (contribFreq) contribFreq.value = 'monthly';
+
+  // Clear withdrawal fields
+  const withdrawAmount = document.getElementById('field-withdrawalAmount');
+  if (withdrawAmount) withdrawAmount.value = '';
+  const withdrawFreq = document.getElementById('field-withdrawalFrequency');
+  if (withdrawFreq) withdrawFreq.value = 'monthly';
+
+  // Clear loan fields
+  const loanAmount = document.getElementById('field-loanAmount');
+  if (loanAmount) loanAmount.value = '';
+  const loanRate = document.getElementById('field-loanRate');
+  if (loanRate) loanRate.value = '';
+  const loanPayment = document.getElementById('field-loanPayment');
+  if (loanPayment) loanPayment.value = '';
+  const loanEscrow = document.getElementById('field-loanEscrow');
+  if (loanEscrow) loanEscrow.value = '';
+  const loanPropertyTax = document.getElementById('field-loanPropertyTax');
+  if (loanPropertyTax) loanPropertyTax.value = '';
+  const loanExtra = document.getElementById('field-loanExtra');
+  if (loanExtra) loanExtra.value = '';
+
+  // Clear 401(k) fields
+  const empContrib = document.getElementById('field-employeeContribution');
+  if (empContrib) empContrib.value = '';
+  const empMatchPct = document.getElementById('field-employerMatchPct');
+  if (empMatchPct) empMatchPct.value = '';
+  const matchCapPct = document.getElementById('field-matchCapPct');
+  if (matchCapPct) matchCapPct.value = '';
+  const annualSalary = document.getElementById('field-annualSalary');
+  if (annualSalary) annualSalary.value = '';
+  const vestingYears = document.getElementById('field-vestingYears');
+  if (vestingYears) vestingYears.value = '';
+  const withdrawalStartYear = document.getElementById('field-withdrawalStartYear');
+  if (withdrawalStartYear) withdrawalStartYear.value = '';
+
+  // Clear "No end date" checkbox and re-enable end year
+  const noEndDate = document.getElementById('noEndDate');
+  if (noEndDate) noEndDate.checked = false;
+  const endYearField = document.getElementById('field-endYear');
+  if (endYearField) {
+    endYearField.disabled = false;
+    endYearField.required = true;
+  }
+}
+
 function openAddModal(type) {
   const label = TYPE_LABELS[type] || type;
 
@@ -1136,6 +1292,12 @@ function openAddModal(type) {
     errorDiv.textContent = '';
     errorDiv.classList.add('d-none');
   }
+
+  // Clear new fields and uncheck "No end date"
+  _clearNewFields();
+
+  // Show/hide field groups based on pre-filled type (no category yet)
+  _updateFieldGroupVisibility(type, '');
 
   // Show modal
   const modal = _getModal();
@@ -1179,8 +1341,26 @@ function openEditModal(index) {
   if (rateField) rateField.value = item.rate != null ? item.rate : 0;
   const startYearField = document.getElementById('field-startYear');
   if (startYearField) startYearField.value = item.startYear;
+
+  // Handle endYear and "No end date" checkbox
   const endYearField = document.getElementById('field-endYear');
-  if (endYearField) endYearField.value = item.endYear;
+  const noEndDate = document.getElementById('noEndDate');
+  if (item.endYear == null) {
+    // Open-ended item
+    if (noEndDate) noEndDate.checked = true;
+    if (endYearField) {
+      endYearField.value = '';
+      endYearField.disabled = true;
+      endYearField.required = false;
+    }
+  } else {
+    if (noEndDate) noEndDate.checked = false;
+    if (endYearField) {
+      endYearField.value = item.endYear;
+      endYearField.disabled = false;
+      endYearField.required = true;
+    }
+  }
 
   // Set edit index
   const editIndexField = document.getElementById('field-editIndex');
@@ -1192,6 +1372,51 @@ function openEditModal(index) {
     errorDiv.textContent = '';
     errorDiv.classList.add('d-none');
   }
+
+  // Populate contribution fields
+  const contribAmount = document.getElementById('field-contributionAmount');
+  if (contribAmount) contribAmount.value = item.contributionAmount != null ? item.contributionAmount : '';
+  const contribFreq = document.getElementById('field-contributionFrequency');
+  if (contribFreq) contribFreq.value = item.contributionFrequency || 'monthly';
+
+  // Populate withdrawal fields
+  const withdrawAmount = document.getElementById('field-withdrawalAmount');
+  if (withdrawAmount) withdrawAmount.value = item.withdrawalAmount != null ? item.withdrawalAmount : '';
+  const withdrawFreq = document.getElementById('field-withdrawalFrequency');
+  if (withdrawFreq) withdrawFreq.value = item.withdrawalFrequency || 'monthly';
+
+  // Populate loan fields
+  const loan = item.loan || {};
+  const loanAmountField = document.getElementById('field-loanAmount');
+  if (loanAmountField) loanAmountField.value = loan.loanAmount != null ? loan.loanAmount : '';
+  const loanRateField = document.getElementById('field-loanRate');
+  if (loanRateField) loanRateField.value = loan.annualInterestRate != null ? loan.annualInterestRate : '';
+  const loanPaymentField = document.getElementById('field-loanPayment');
+  if (loanPaymentField) loanPaymentField.value = loan.monthlyPayment != null ? loan.monthlyPayment : '';
+  const loanEscrowField = document.getElementById('field-loanEscrow');
+  if (loanEscrowField) loanEscrowField.value = loan.escrowMonthly != null ? loan.escrowMonthly : '';
+  const loanPropertyTaxField = document.getElementById('field-loanPropertyTax');
+  if (loanPropertyTaxField) loanPropertyTaxField.value = loan.propertyTaxAnnual != null ? loan.propertyTaxAnnual : '';
+  const loanExtraField = document.getElementById('field-loanExtra');
+  if (loanExtraField) loanExtraField.value = loan.extraMonthlyPayment != null ? loan.extraMonthlyPayment : '';
+
+  // Populate 401(k) fields
+  const r401k = item.retirement401k || {};
+  const empContrib = document.getElementById('field-employeeContribution');
+  if (empContrib) empContrib.value = r401k.employeeContribution != null ? r401k.employeeContribution : '';
+  const empMatchPct = document.getElementById('field-employerMatchPct');
+  if (empMatchPct) empMatchPct.value = r401k.employerMatchPct != null ? r401k.employerMatchPct : '';
+  const matchCapPct = document.getElementById('field-matchCapPct');
+  if (matchCapPct) matchCapPct.value = r401k.employerMatchCapPct != null ? r401k.employerMatchCapPct : '';
+  const annualSalary = document.getElementById('field-annualSalary');
+  if (annualSalary) annualSalary.value = r401k.annualSalary != null ? r401k.annualSalary : '';
+  const vestingYears = document.getElementById('field-vestingYears');
+  if (vestingYears) vestingYears.value = r401k.vestingYears != null ? r401k.vestingYears : '';
+  const withdrawalStartYear = document.getElementById('field-withdrawalStartYear');
+  if (withdrawalStartYear) withdrawalStartYear.value = r401k.withdrawalStartYear != null ? r401k.withdrawalStartYear : '';
+
+  // Show/hide field groups based on item type and category
+  _updateFieldGroupVisibility(item.type, item.category);
 
   // Show modal
   const modal = _getModal();
@@ -1245,6 +1470,11 @@ function _handleSaveItem() {
   const startYearRaw = (document.getElementById('field-startYear') || {}).value;
   const endYearRaw = (document.getElementById('field-endYear') || {}).value;
 
+  // Read "No end date" checkbox
+  const noEndDateChecked = document.getElementById('noEndDate')
+    ? document.getElementById('noEndDate').checked
+    : false;
+
   // Validate required fields
   if (!type) { _showModalError('Type is required.'); return; }
   if (!category) { _showModalError('Category is required.'); return; }
@@ -1254,24 +1484,142 @@ function _handleSaveItem() {
     return;
   }
   if (startYearRaw === '' || startYearRaw === null) { _showModalError('Start Year is required.'); return; }
-  if (endYearRaw === '' || endYearRaw === null) { _showModalError('End Year is required.'); return; }
+
+  // End Year validation: skip when "No end date" is checked
+  if (!noEndDateChecked) {
+    if (endYearRaw === '' || endYearRaw === null) { _showModalError('End Year is required.'); return; }
+  }
 
   const amount = Number(amountRaw);
   const rate = rateRaw !== '' ? Number(rateRaw) : 0;
   const startYear = Number(startYearRaw);
-  const endYear = Number(endYearRaw);
+  const endYear = noEndDateChecked ? null : Number(endYearRaw);
 
   if (!isFinite(amount)) { _showModalError('Amount must be a valid number.'); return; }
   if (!isFinite(rate)) { _showModalError('Rate must be a valid number.'); return; }
   if (!isFinite(startYear)) { _showModalError('Start Year must be a valid number.'); return; }
-  if (!isFinite(endYear)) { _showModalError('End Year must be a valid number.'); return; }
-  if (startYear > endYear) { _showModalError('Start Year must be less than or equal to End Year.'); return; }
+  if (endYear !== null) {
+    if (!isFinite(endYear)) { _showModalError('End Year must be a valid number.'); return; }
+    if (startYear > endYear) { _showModalError('Start Year must be less than or equal to End Year.'); return; }
+  }
+
+  // --- Read and validate contribution fields ---
+  let contributionAmount = null;
+  let contributionFrequency = null;
+  if (type === 'bank' || type === 'investments') {
+    const contribAmountRaw = (document.getElementById('field-contributionAmount') || {}).value;
+    if (contribAmountRaw !== '' && contribAmountRaw != null) {
+      const val = Number(contribAmountRaw);
+      if (!isFinite(val) || val < 0) { _showModalError('Contribution Amount must be a finite non-negative number.'); return; }
+      contributionAmount = val;
+      contributionFrequency = (document.getElementById('field-contributionFrequency') || {}).value || 'monthly';
+    }
+  }
+
+  // --- Read and validate withdrawal fields ---
+  let withdrawalAmount = null;
+  let withdrawalFrequency = null;
+  if (ASSET_TYPES.includes(type)) {
+    const withdrawAmountRaw = (document.getElementById('field-withdrawalAmount') || {}).value;
+    if (withdrawAmountRaw !== '' && withdrawAmountRaw != null) {
+      const val = Number(withdrawAmountRaw);
+      if (!isFinite(val) || val < 0) { _showModalError('Withdrawal Amount must be a finite non-negative number.'); return; }
+      withdrawalAmount = val;
+      withdrawalFrequency = (document.getElementById('field-withdrawalFrequency') || {}).value || 'monthly';
+    }
+  }
+
+  // --- Read and validate loan fields ---
+  let loan = null;
+  if (type === 'property' || type === 'vehicles') {
+    const loanAmountRaw = (document.getElementById('field-loanAmount') || {}).value;
+    if (loanAmountRaw !== '' && loanAmountRaw != null) {
+      const loanAmountVal = Number(loanAmountRaw);
+      if (!isFinite(loanAmountVal) || loanAmountVal < 0) { _showModalError('Loan Amount must be a finite non-negative number.'); return; }
+
+      const loanRateRaw = (document.getElementById('field-loanRate') || {}).value;
+      const loanRateVal = loanRateRaw !== '' ? Number(loanRateRaw) : 0;
+      if (!isFinite(loanRateVal) || loanRateVal < 0) { _showModalError('Loan Interest Rate must be a finite non-negative number.'); return; }
+
+      const loanPaymentRaw = (document.getElementById('field-loanPayment') || {}).value;
+      if (loanPaymentRaw === '' || loanPaymentRaw == null) { _showModalError('Monthly Payment is required when Loan Amount is provided.'); return; }
+      const loanPaymentVal = Number(loanPaymentRaw);
+      if (!isFinite(loanPaymentVal) || loanPaymentVal < 0) { _showModalError('Monthly Payment must be a finite non-negative number.'); return; }
+
+      const loanEscrowRaw = (document.getElementById('field-loanEscrow') || {}).value;
+      const loanEscrowVal = loanEscrowRaw !== '' ? Number(loanEscrowRaw) : 0;
+      if (!isFinite(loanEscrowVal) || loanEscrowVal < 0) { _showModalError('Escrow Monthly must be a finite non-negative number.'); return; }
+
+      const loanPropertyTaxRaw = (document.getElementById('field-loanPropertyTax') || {}).value;
+      const loanPropertyTaxVal = loanPropertyTaxRaw !== '' ? Number(loanPropertyTaxRaw) : 0;
+      if (!isFinite(loanPropertyTaxVal) || loanPropertyTaxVal < 0) { _showModalError('Property Tax Annual must be a finite non-negative number.'); return; }
+
+      const loanExtraRaw = (document.getElementById('field-loanExtra') || {}).value;
+      const loanExtraVal = loanExtraRaw !== '' ? Number(loanExtraRaw) : 0;
+      if (!isFinite(loanExtraVal) || loanExtraVal < 0) { _showModalError('Extra Monthly Payment must be a finite non-negative number.'); return; }
+
+      loan = {
+        loanAmount: loanAmountVal,
+        annualInterestRate: loanRateVal,
+        monthlyPayment: loanPaymentVal,
+        escrowMonthly: loanEscrowVal,
+        propertyTaxAnnual: loanPropertyTaxVal,
+        extraMonthlyPayment: loanExtraVal
+      };
+    }
+  }
+
+  // --- Read and validate 401(k) fields ---
+  let retirement401k = null;
+  if (category === 'Traditional 401(k)' || category === 'Roth 401(k)') {
+    const empContribRaw = (document.getElementById('field-employeeContribution') || {}).value;
+    if (empContribRaw !== '' && empContribRaw != null) {
+      const empContribVal = Number(empContribRaw);
+      if (!isFinite(empContribVal) || empContribVal < 0) { _showModalError('Employee Contribution must be a finite non-negative number.'); return; }
+
+      const empMatchPctRaw = (document.getElementById('field-employerMatchPct') || {}).value;
+      const empMatchPctVal = empMatchPctRaw !== '' ? Number(empMatchPctRaw) : 0;
+      if (!isFinite(empMatchPctVal) || empMatchPctVal < 0) { _showModalError('Employer Match % must be a finite non-negative number.'); return; }
+
+      const matchCapPctRaw = (document.getElementById('field-matchCapPct') || {}).value;
+      const matchCapPctVal = matchCapPctRaw !== '' ? Number(matchCapPctRaw) : 0;
+      if (!isFinite(matchCapPctVal) || matchCapPctVal < 0) { _showModalError('Match Cap % must be a finite non-negative number.'); return; }
+
+      const annualSalaryRaw = (document.getElementById('field-annualSalary') || {}).value;
+      const annualSalaryVal = annualSalaryRaw !== '' ? Number(annualSalaryRaw) : 0;
+      if (!isFinite(annualSalaryVal) || annualSalaryVal < 0) { _showModalError('Annual Salary must be a finite non-negative number.'); return; }
+
+      const vestingYearsRaw = (document.getElementById('field-vestingYears') || {}).value;
+      const vestingYearsVal = vestingYearsRaw !== '' ? Number(vestingYearsRaw) : 0;
+      if (!isFinite(vestingYearsVal) || vestingYearsVal < 0 || !Number.isInteger(vestingYearsVal)) {
+        _showModalError('Vesting Years must be an integer ≥ 0.'); return;
+      }
+
+      const withdrawalStartYearRaw = (document.getElementById('field-withdrawalStartYear') || {}).value;
+      const withdrawalStartYearVal = (withdrawalStartYearRaw !== '' && withdrawalStartYearRaw != null) ? Number(withdrawalStartYearRaw) : null;
+      if (withdrawalStartYearVal !== null && !isFinite(withdrawalStartYearVal)) {
+        _showModalError('Withdrawal Start Year must be a valid number.'); return;
+      }
+
+      retirement401k = {
+        employeeContribution: empContribVal,
+        employerMatchPct: empMatchPctVal,
+        employerMatchCapPct: matchCapPctVal,
+        annualSalary: annualSalaryVal,
+        vestingYears: vestingYearsVal,
+        withdrawalStartYear: withdrawalStartYearVal
+      };
+    }
+  }
 
   if (isEdit) {
     // Update existing item
     const editIndex = Number(editIndexRaw);
     items[editIndex] = Object.assign({}, items[editIndex], {
-      type, category, name, amount, rate, startYear, endYear
+      type, category, name, amount, rate, startYear, endYear,
+      contributionAmount, contributionFrequency,
+      withdrawalAmount, withdrawalFrequency,
+      loan, retirement401k
     });
   } else {
     // New item
@@ -1284,7 +1632,13 @@ function _handleSaveItem() {
       rate,
       startYear,
       endYear,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      contributionAmount,
+      contributionFrequency,
+      withdrawalAmount,
+      withdrawalFrequency,
+      loan,
+      retirement401k
     };
     items.push(newItem);
   }
@@ -1419,6 +1773,46 @@ if (typeof document !== 'undefined') {
     if (addBtn) {
       addBtn.addEventListener('click', () => {
         openAddModal(activeSection);
+      });
+    }
+
+    // --- 11.1: Wire type select change to show/hide field groups ---
+    const typeSelect = document.getElementById('field-type');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', () => {
+        const selectedType = typeSelect.value;
+        _populateCategorySelect(selectedType);
+        const categorySelect = document.getElementById('field-category');
+        _updateFieldGroupVisibility(selectedType, categorySelect ? categorySelect.value : '');
+      });
+    }
+
+    // --- 11.1: Wire category select change to show/hide 401(k) group ---
+    const categorySelect = document.getElementById('field-category');
+    if (categorySelect) {
+      categorySelect.addEventListener('change', () => {
+        const currentType = (document.getElementById('field-type') || {}).value || '';
+        _updateFieldGroupVisibility(currentType, categorySelect.value);
+      });
+    }
+
+    // --- 11.1: Wire "No end date" checkbox to disable/clear End Year ---
+    const noEndDateCheckbox = document.getElementById('noEndDate');
+    if (noEndDateCheckbox) {
+      noEndDateCheckbox.addEventListener('change', () => {
+        const endYearField = document.getElementById('field-endYear');
+        if (noEndDateCheckbox.checked) {
+          if (endYearField) {
+            endYearField.value = '';
+            endYearField.disabled = true;
+            endYearField.required = false;
+          }
+        } else {
+          if (endYearField) {
+            endYearField.disabled = false;
+            endYearField.required = true;
+          }
+        }
       });
     }
 
@@ -1597,7 +1991,8 @@ if (typeof module !== 'undefined') {
     openAddModal, openEditModal, closeModal,
     initiateDelete, confirmDelete, cancelDelete,
     _handleSaveItem, _generateUUID, _showModalError, _escapeHtml,
-    render, renderItemList, renderEmptyState, updateBadges, updateStats, updateChart,
+    _updateFieldGroupVisibility, _clearNewFields,
+    render, renderItemList, renderEmptyState, renderTaxBreakdown, updateBadges, updateStats, updateChart,
     applyTheme, _showStorageToast, _showInfoAlert,
     get activeSection() { return activeSection; },
     set activeSection(v) { activeSection = v; },
