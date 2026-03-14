@@ -14,7 +14,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Update `loadState()` to merge tax settings with defaults on load (handle missing/corrupt tax fields)
     - Update `saveSettings()` to persist tax settings
     - _Requirements: 6.1, 6.4, 6.5, 6.6, 6.7, 9.1, 11.1, 11.4, 11.6, 11.18_
-  - [-] 1.2 Write unit tests for state persistence of new fields in `tests/state.test.js`
+  - [x] 1.2 Write unit tests for state persistence of new fields in `tests/state.test.js`
     - Test save/load of item with `endYear: null`
     - Test save/load of item with contribution, withdrawal, loan, and retirement401k fields
     - Test save/load of tax settings
