@@ -93,8 +93,8 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Validates: Requirements 8.5**
     - File: `tests/serializer.test.js`
 
-- [ ] 7. Item management — add, edit, delete, and validation
-  - [~] 7.1 Implement `openAddModal(type)`, `openEditModal(index)`, and `closeModal()` in `script.js`
+- [x] 7. Item management — add, edit, delete, and validation
+  - [x] 7.1 Implement `openAddModal(type)`, `openEditModal(index)`, and `closeModal()` in `script.js`
     - `openAddModal` pre-fills type, populates subcategory `<select>` from `SUBCATEGORIES`, clears other fields, focuses Name
     - `openEditModal` pre-fills all fields from the item at the given index
     - _Requirements: 1.3, 2.1–2.7, 11.3_
@@ -102,7 +102,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Property 7: Subcategory Options Match Spec**
     - **Validates: Requirements 2.1–2.7**
     - File: `tests/renderer.test.js`
-  - [~] 7.3 Implement form submit handler in `script.js`
+  - [x] 7.3 Implement form submit handler in `script.js`
     - Validate required fields (`type`, `category`, `name`, `amount`, `startYear`, `endYear`); validate `startYear ≤ endYear`; validate finite numbers
     - On failure: show inline Bootstrap alert inside modal, do not close, do not write to localStorage
     - On success: assign UUID v4 `id` and ISO `createdAt`, push to items array, call `saveItems`, call `render`, close modal
@@ -124,7 +124,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Property 5: Item Count Limit Enforced**
     - **Validates: Requirements 1.7**
     - File: `tests/state.test.js`
-  - [~] 7.8 Implement inline delete confirmation in `script.js`
+  - [x] 7.8 Implement inline delete confirmation in `script.js`
     - Clicking delete replaces the row's action area with "Delete? Yes / No" buttons (no popup)
     - "Yes" removes item from array, calls `saveItems`, calls `render`
     - "No" re-renders the row to its normal state
@@ -138,7 +138,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Validates: Requirements 1.6**
     - File: `tests/state.test.js`
 
-- [~] 8. Checkpoint — item management tests pass
+- [x] 8. Checkpoint — item management tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 9. Renderer module — item list, empty state, badges, and section filter
