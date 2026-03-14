@@ -1,5 +1,11 @@
 // =============================================================================
-// UI Constants — labels, icons, section metadata, utilities
+// UI Constants — display labels, Bootstrap icons, section metadata
+// Exports: TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml
+//
+// TYPE_LABELS maps item type → human label (e.g. "bank" → "Bank Account")
+// TYPE_ICONS maps item type → Bootstrap icon class (e.g. "bank" → "bi-bank")
+// SECTION_META maps section id → { title, subtitle } for the page header
+// _escapeHtml sanitizes strings for safe HTML insertion
 // =============================================================================
 
 export const TYPE_LABELS = {

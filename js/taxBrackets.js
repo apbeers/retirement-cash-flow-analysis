@@ -1,5 +1,17 @@
 // =============================================================================
-// Tax Brackets — 2025 IRS seed values
+// Tax Brackets — 2025 IRS seed values for federal income tax estimation
+// Exports: TAX_BRACKETS_2025
+//
+// Structure: TAX_BRACKETS_2025[filingStatus] = {
+//   ordinary: [{ rate, upTo }],     — marginal income tax brackets
+//   ltcg: [{ rate, upTo }],         — long-term capital gains brackets
+//   standardDeduction: number,
+//   ssTaxThresholdLow: number,      — Social Security provisional income thresholds
+//   ssTaxThresholdHigh: number
+// }
+//
+// These are 2025 base values. calcTax() inflates them annually using
+// settings.tax.bracketInflationRate (default 2.5%).
 // =============================================================================
 
 export const TAX_BRACKETS_2025 = {

@@ -1,6 +1,11 @@
 // =============================================================================
-// State — loadState(), saveItems(), saveSettings()
-// Depends on: constants.js
+// State — localStorage persistence for items and settings
+// Exports: loadState, saveItems, saveSettings
+// Depends on: constants.js (STORAGE_KEYS, DEFAULT_SETTINGS)
+//
+// loadState() reads from localStorage and merges with defaults (handles
+// missing keys, corrupt JSON, and partial settings gracefully).
+// saveItems/saveSettings write JSON to localStorage immediately.
 // =============================================================================
 
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from './constants.js';

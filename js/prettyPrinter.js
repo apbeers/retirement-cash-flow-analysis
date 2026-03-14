@@ -1,5 +1,10 @@
 // =============================================================================
-// PrettyPrinter — formatMoney(value)
+// PrettyPrinter — human-readable dollar formatting
+// Exports: formatMoney
+//
+// formatMoney(1500000) → "$1.5M"
+// formatMoney(45300)   → "$45.3K"
+// formatMoney(500)     → "$500"
 // =============================================================================
 
 export function formatMoney(value) {

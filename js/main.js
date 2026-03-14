@@ -1,6 +1,9 @@
 // =============================================================================
-// main.js — Browser entry point
-// Loads all modules and exposes onclick-referenced functions on window
+// main.js — Browser entry point (ES module mode)
+// Loads all modules and exposes onclick-referenced functions on window.
+//
+// Any function used in an onclick="" HTML attribute MUST be added here
+// AND in the globals section at the bottom of build.js.
 // =============================================================================
 
 import { initiateDelete, confirmDelete, cancelDelete, openEditModal } from './modalController.js';

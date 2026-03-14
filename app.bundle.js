@@ -47,7 +47,19 @@ const MAX_ITEMS = 999;
 
 // --- js/taxBrackets.js ---
 // =============================================================================
-// Tax Brackets — 2025 IRS seed values
+// Tax Brackets — 2025 IRS seed values for federal income tax estimation
+// Exports: TAX_BRACKETS_2025
+//
+// Structure: TAX_BRACKETS_2025[filingStatus] = {
+//   ordinary: [{ rate, upTo }],     — marginal income tax brackets
+//   ltcg: [{ rate, upTo }],         — long-term capital gains brackets
+//   standardDeduction: number,
+//   ssTaxThresholdLow: number,      — Social Security provisional income thresholds
+//   ssTaxThresholdHigh: number
+// }
+//
+// These are 2025 base values. calcTax() inflates them annually using
+// settings.tax.bracketInflationRate (default 2.5%).
 // =============================================================================
 const TAX_BRACKETS_2025 = {
   single: {
@@ -93,8 +105,13 @@ const TAX_BRACKETS_2025 = {
 
 // --- js/state.js ---
 // =============================================================================
-// State — loadState(), saveItems(), saveSettings()
-// Depends on: constants.js
+// State — localStorage persistence for items and settings
+// Exports: loadState, saveItems, saveSettings
+// Depends on: constants.js (STORAGE_KEYS, DEFAULT_SETTINGS)
+//
+// loadState() reads from localStorage and merges with defaults (handles
+// missing keys, corrupt JSON, and partial settings gracefully).
+// saveItems/saveSettings write JSON to localStorage immediately.
 // =============================================================================
 function loadState() {
   let items = [];
@@ -137,7 +154,12 @@ function saveSettings(settings) {
 
 // --- js/prettyPrinter.js ---
 // =============================================================================
-// PrettyPrinter — formatMoney(value)
+// PrettyPrinter — human-readable dollar formatting
+// Exports: formatMoney
+//
+// formatMoney(1500000) → "$1.5M"
+// formatMoney(45300)   → "$45.3K"
+// formatMoney(500)     → "$500"
 // =============================================================================
 function formatMoney(value) {
   if (value >= 1_000_000) {
@@ -727,7 +749,13 @@ function importFromXlsx(file) {
 
 // --- js/uiConstants.js ---
 // =============================================================================
-// UI Constants — labels, icons, section metadata, utilities
+// UI Constants — display labels, Bootstrap icons, section metadata
+// Exports: TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml
+//
+// TYPE_LABELS maps item type → human label (e.g. "bank" → "Bank Account")
+// TYPE_ICONS maps item type → Bootstrap icon class (e.g. "bank" → "bi-bank")
+// SECTION_META maps section id → { title, subtitle } for the page header
+// _escapeHtml sanitizes strings for safe HTML insertion
 // =============================================================================
 const TYPE_LABELS = {
   bank: 'Bank Account',
@@ -768,8 +796,18 @@ function _escapeHtml(str) {
 
 // --- js/appState.js ---
 // =============================================================================
-// App State — shared mutable state object
+// App State — shared mutable singleton used by all modules
+// Exports: state
+// Depends on: state.js
+//
+// Properties:
+//   state.items       — array of Item objects (the user's financial items)
+//   state.settings    — Settings object (projection config, theme, tax)
+//   state.activeSection — current sidebar section ("dashboard", "bank", etc.)
+//   state.chartInstance — current Chart.js instance (or null)
+//
 // All modules import `state` and read/write its properties directly.
+// After mutating items/settings, call saveItems()/saveSettings() then render().
 // =============================================================================
 
 const _loaded = loadState();
