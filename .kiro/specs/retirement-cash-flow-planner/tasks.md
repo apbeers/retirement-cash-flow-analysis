@@ -24,7 +24,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Validates: Requirements 7.2, 7.3, 9.5**
     - File: `tests/state.test.js`
 
-- [ ] 3. PrettyPrinter — formatMoney
+- [x] 3. PrettyPrinter — formatMoney
   - [x] 3.1 Implement `formatMoney(value)` in `script.js`
     - `≥ 1,000,000` → `$X.XM`; `≥ 1,000` → `$X.XK`; `< 1,000` → `$X`
     - _Requirements: 5.5, 11.2_
@@ -36,8 +36,8 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Validates: Requirements 5.5, 11.2**
     - File: `tests/prettyPrinter.test.js`
 
-- [ ] 4. Calculator module
-  - [~] 4.1 Implement `calcItemValue(item, year)` in `script.js`
+- [x] 4. Calculator module
+  - [x] 4.1 Implement `calcItemValue(item, year)` in `script.js`
     - Returns `item.amount × (1 + item.rate/100) ^ (year − item.startYear)` when year is within `[item.startYear, item.endYear]`; returns `0` otherwise
     - _Requirements: 3.2, 3.3, 3.5_
   - [ ]* 4.2 Write unit tests for `calcItemValue` edge cases
@@ -47,7 +47,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Property 9: Compound Growth Formula Correctness**
     - **Validates: Requirements 3.2, 3.3, 3.5**
     - File: `tests/calculator.test.js`
-  - [~] 4.4 Implement `calcProjection(items, settings)` in `script.js`
+  - [x] 4.4 Implement `calcProjection(items, settings)` in `script.js`
     - Returns array of `ProjectionYear` objects, one per year from `startYear` to `startYear + projectionYears - 1`
     - Each entry includes `netWorth` and `byType` breakdown
     - _Requirements: 3.1, 3.4_
@@ -59,7 +59,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Property 10: Net Worth Formula Correctness**
     - **Validates: Requirements 3.4**
     - File: `tests/calculator.test.js`
-  - [~] 4.7 Implement `calcStats(items, settings)` in `script.js`
+  - [x] 4.7 Implement `calcStats(items, settings)` in `script.js`
     - Returns `{ totalAssets, annualInflow, annualOutflow }` for `settings.startYear`
     - _Requirements: 5.1, 5.2, 5.3_
   - [ ]* 4.8 Write property test for stats correctness (Property 11)
@@ -67,7 +67,7 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
     - **Validates: Requirements 5.1, 5.2, 5.3**
     - File: `tests/calculator.test.js`
 
-- [~] 5. Checkpoint — calculator tests pass
+- [x] 5. Checkpoint — calculator tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Serializer module — Excel import and export
