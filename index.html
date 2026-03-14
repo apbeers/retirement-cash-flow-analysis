@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retirement Cash Flow Planner</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-dark text-light">
+  <div class="container-fluid">
+    <div class="row min-vh-100">
+      <!-- Sidebar -->
+      <nav class="col-12 col-md-3 col-lg-2 d-md-block bg-dark sidebar py-4">
+        <div class="sidebar-sticky">
+          <h2 class="text-primary px-3 mb-4">RETIREPLAN</h2>
+          <ul class="nav flex-column px-3">
+            <li class="nav-item mb-2"><a class="nav-link active text-light" href="#">Dashboard</a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Inflows <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Outflows <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Bank Accounts <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Investments <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Property <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Vehicles <span class="badge bg-secondary">0</span></a></li>
+            <li class="nav-item mb-2"><a class="nav-link text-light" href="#">Rentals <span class="badge bg-secondary">0</span></a></li>
+          </ul>
+        </div>
+      </nav>
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+          <div>
+            <h1 class="h3">Retirement Asset Projection</h1>
+            <div class="text-muted">2025 – 2055 · 30-year projection</div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="card bg-dark text-light border-secondary mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Total Assets</h5>
+                <h2 class="text-primary">$0</h2>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card bg-dark text-light border-secondary mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Annual Inflow</h5>
+                <h2 class="text-success">$0</h2>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card bg-dark text-light border-secondary mb-3">
+              <div class="card-body">
+                <h5 class="card-title">Annual Outflow</h5>
+                <h2 class="text-danger">$0</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card bg-dark text-light border-secondary mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Retirement Asset Projection</h5>
+            <canvas id="projectionChart" height="100"></canvas>
+          </div>
+        </div>
+        <!-- Item List -->
+        <div id="itemList" class="mt-4"></div>
+        <!-- Add/Edit Item Modal -->
+        <div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light">
+              <div class="modal-header">
+                <h5 class="modal-title" id="itemModalLabel">Add/Edit Item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <form id="itemForm">
+                  <div class="mb-3">
+                    <label for="itemType" class="form-label">Type</label>
+                    <select class="form-select" id="itemType" required>
+                      <option value="">Select type</option>
+                      <option value="inflows">Inflows</option>
+                      <option value="outflows">Outflows</option>
+                      <option value="bank">Bank Accounts</option>
+                      <option value="investments">Investments</option>
+                      <option value="property">Property</option>
+                      <option value="vehicles">Vehicles</option>
+                      <option value="rentals">Rentals</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemCategory" class="form-label">Category</label>
+                    <input type="text" class="form-control" id="itemCategory" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemName" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="itemName" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemAmount" class="form-label">Amount</label>
+                    <input type="number" class="form-control" id="itemAmount" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemRate" class="form-label">Annual Rate (%)</label>
+                    <input type="number" class="form-control" id="itemRate" step="0.01">
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemStartYear" class="form-label">Start Year</label>
+                    <input type="number" class="form-control" id="itemStartYear" min="2025" max="2055" required>
+                  </div>
+                  <div class="mb-3">
+                    <label for="itemEndYear" class="form-label">End Year</label>
+                    <input type="number" class="form-control" id="itemEndYear" min="2025" max="2055" required>
+                  </div>
+                  <input type="hidden" id="itemIndex">
+                  <button type="submit" class="btn btn-primary">Save</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <button class="btn btn-outline-primary me-2" id="importBtn">Import Excel</button>
+          <input type="file" id="importFile" accept=".xlsx" style="display:none">
+          <button class="btn btn-outline-success" id="exportBtn">Export Excel</button>
+        </div>
+      </main>
+    </div>
+  </div>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Custom JS -->
+  <script src="script.js"></script>
+</body>
+</html>
