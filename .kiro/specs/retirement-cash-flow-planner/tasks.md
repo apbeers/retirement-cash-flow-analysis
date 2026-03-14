@@ -70,12 +70,12 @@ Implement a static single-page app in three files (`index.html`, `script.js`, `s
 - [x] 5. Checkpoint — calculator tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Serializer module — Excel import and export
-  - [~] 6.1 Implement `exportToXlsx(items)` in `script.js`
+- [x] 6. Serializer module — Excel import and export
+  - [x] 6.1 Implement `exportToXlsx(items)` in `script.js`
     - Uses SheetJS to build a workbook with one row per item, columns matching the Item schema
     - Triggers browser download of `retirement-cash-flow.xlsx`
     - _Requirements: 8.1_
-  - [~] 6.2 Implement `importFromXlsx(file)` in `script.js`
+  - [x] 6.2 Implement `importFromXlsx(file)` in `script.js`
     - Reads first sheet, parses rows into Item objects, skips rows missing required fields
     - Returns `Promise<{ items, skipped }>`
     - Rejects non-`.xlsx` files immediately without modifying state

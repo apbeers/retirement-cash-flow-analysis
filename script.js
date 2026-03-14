@@ -154,11 +154,80 @@ function calcStats(items, settings) {
 }
 
 // =============================================================================
+// Serializer — exportToXlsx(items), importFromXlsx(file)
+// =============================================================================
+
+const _XLSX = typeof XLSX !== 'undefined' ? XLSX : (typeof require !== 'undefined' ? require('xlsx') : null);
+
+function exportToXlsx(items) {
+  if (!_XLSX) return;
+
+  const headers = ['id', 'type', 'category', 'name', 'amount', 'rate', 'startYear', 'endYear', 'createdAt'];
+  const rows = items.map(item => headers.map(h => item[h]));
+  const wsData = [headers, ...rows];
+
+  const ws = _XLSX.utils.aoa_to_sheet(wsData);
+  const wb = _XLSX.utils.book_new();
+  _XLSX.utils.book_append_sheet(wb, ws, 'Items');
+
+  _XLSX.writeFile(wb, 'retirement-cash-flow.xlsx');
+}
+
+function importFromXlsx(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.name.endsWith('.xlsx')) {
+      return reject(new Error('Only .xlsx files are supported. No data was changed.'));
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = _XLSX.read(data, { type: 'array' });
+        const sheetName = wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rows = _XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        const requiredFields = ['type', 'category', 'name', 'amount', 'startYear', 'endYear'];
+        const items = [];
+        let skipped = 0;
+
+        for (const row of rows) {
+          const missing = requiredFields.some(f => row[f] === '' || row[f] === null || row[f] === undefined);
+          if (missing) {
+            skipped++;
+            continue;
+          }
+          items.push({
+            id: row.id || '',
+            type: row.type,
+            category: row.category,
+            name: row.name,
+            amount: Number(row.amount),
+            rate: Number(row.rate) || 0,
+            startYear: Number(row.startYear),
+            endYear: Number(row.endYear),
+            createdAt: row.createdAt || ''
+          });
+        }
+
+        resolve({ items, skipped });
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// =============================================================================
 // Exports (for test environment)
 // =============================================================================
 
 if (typeof module !== 'undefined') {
   module.exports = { formatMoney, calcItemValue, calcProjection, calcStats,
     ASSET_TYPES, CASHFLOW_TYPES, ALL_TYPES, SUBCATEGORIES, DEFAULT_SETTINGS,
-    STORAGE_KEYS, MAX_ITEMS, loadState, saveItems, saveSettings };
+    STORAGE_KEYS, MAX_ITEMS, loadState, saveItems, saveSettings,
+    exportToXlsx, importFromXlsx };
 }
