@@ -6,7 +6,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
 
 ## Tasks
 
-- [ ] 1. Extend data model constants and state module
+- [x] 1. Extend data model constants and state module
   - [x] 1.1 Update `DEFAULT_SETTINGS`, `SUBCATEGORIES`, constants, and state persistence in `script.js`
     - Add `tax` sub-object to `DEFAULT_SETTINGS` with `filingStatus`, `birthYear`, `annualSocialSecurityBenefit`, `socialSecurityStartYear`, `bracketInflationRate`
     - Add `'Traditional 401(k)'` and `'Roth 401(k)'` to `SUBCATEGORIES.investments`
@@ -20,7 +20,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Test save/load of tax settings
     - _Requirements: 6.4, 6.5, 6.7, 11.3, 11.18_
 
-- [ ] 2. Implement balance-based projection with contributions and withdrawals
+- [x] 2. Implement balance-based projection with contributions and withdrawals
   - [x] 2.1 Implement `calcItemBalance(item, year, balanceCache)` in `script.js`
     - Seed `balanceCache[item.id][startYear - 1] = item.amount`
     - For each year: `balance(y) = max(0, (balance(y-1) + annualContrib - annualWithdraw) * (1 + rate/100))`
@@ -38,7 +38,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 2.2, 2.3, 2.4, 5.4**
     - File: `tests/calculator.test.js`
 
-- [ ] 3. Implement loan amortisation
+- [x] 3. Implement loan amortisation
   - [x] 3.1 Implement `calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear)` in `script.js`
     - Monthly simulation: `interestCharge = balance * monthlyRate`, `principalCharge = min(totalPayment - interestCharge, balance)`, `balance = max(0, balance - principalCharge)`
     - Aggregate per year: sum principalPaid, interestPaid, escrowPaid; record closingBalance
@@ -55,7 +55,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 4.4, 4.5**
     - File: `tests/calculator.test.js`
 
-- [ ] 4. Implement net equity and open-ended items in projection
+- [x] 4. Implement net equity and open-ended items in projection
   - [x] 4.1 Update `calcProjection(items, settings)` in `script.js`
     - Maintain `balanceCache` map keyed by item id across years
     - For bank/investment items: use `calcItemBalance()` instead of `calcItemValue()`
@@ -74,10 +74,10 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 10.4, 10.5, 10.7, 6.7**
     - File: `tests/calculator.test.js`
 
-- [ ] 5. Checkpoint — contributions, withdrawals, loans, and open-ended projection tests pass
+- [x] 5. Checkpoint — contributions, withdrawals, loans, and open-ended projection tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Implement 401(k) balance calculation
+- [x] 6. Implement 401(k) balance calculation
   - [x] 6.1 Implement `calc401kBalance(item, year, balanceCache)` in `script.js`
     - Contribution phase: `balance(y) = (balance(y-1) + employeeContribution + employerMatch) * (1 + rate/100)`
     - Employer match = `min(employeeContribution, salary * matchCapPct/100) * matchPct/100`
@@ -90,7 +90,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 9.5**
     - File: `tests/calculator.test.js`
 
-- [ ] 7. Implement US federal tax calculation
+- [x] 7. Implement US federal tax calculation
   - [x] 7.1 Implement `calcTax(taxInputs, settings)` in `script.js`
     - Inflate brackets and standard deduction by `(1 + bracketInflationRate/100) ^ (year - 2025)`
     - Compute ordinary income: Traditional 401(k) withdrawals + bank interest + taxable Social Security
@@ -119,10 +119,10 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 11.13**
     - File: `tests/calculator.test.js`
 
-- [ ] 8. Checkpoint — 401(k) and tax calculation tests pass
+- [x] 8. Checkpoint — 401(k) and tax calculation tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Extend serializer for new fields
+- [x] 9. Extend serializer for new fields
   - [x] 9.1 Update `exportToXlsx(items)` and `importFromXlsx(file)` in `script.js`
     - Add columns for all new fields: `contributionAmount`, `contributionFrequency`, `withdrawalAmount`, `withdrawalFrequency`, `loanAmount`, `loanAnnualInterestRate`, `loanMonthlyPayment`, `loanEscrowMonthly`, `loanPropertyTaxAnnual`, `loanExtraMonthlyPayment`, `employeeContribution`, `employerMatchPct`, `employerMatchCapPct`, `annualSalary`, `vestingYears`, `withdrawalStartYear`
     - Handle `endYear: null` as empty cell on export, empty cell as `null` on import
@@ -138,10 +138,10 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - **Validates: Requirements 7.4**
     - File: `tests/serializer.test.js`
 
-- [ ] 10. Checkpoint — serializer tests pass
+- [x] 10. Checkpoint — serializer tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Update modal controller for new field groups
+- [x] 11. Update modal controller for new field groups
   - [x] 11.1 Add contribution, withdrawal, loan, 401(k), and open-ended field groups to the item modal in `index.html` and `script.js`
     - Contribution group (shown for bank, investments): Contribution Amount, Contribution Frequency select (monthly/annual)
     - Withdrawal group (shown for all asset types): Withdrawal Amount, Withdrawal Frequency select (monthly/annual)
@@ -150,19 +150,19 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Open-ended toggle (all types): "No end date" checkbox that disables/clears End Year input
     - Show/hide field groups dynamically based on item type and category selection
     - _Requirements: 1.1, 2.1, 3.1, 9.2, 10.1, 10.2_
-  - [~] 11.2 Update `openAddModal()` and `openEditModal()` to populate/clear new fields
+  - [x] 11.2 Update `openAddModal()` and `openEditModal()` to populate/clear new fields
     - Pre-fill new fields from item data on edit
     - Clear new fields on add
     - Handle `endYear: null` ↔ "No end date" checkbox state
     - _Requirements: 1.1, 2.1, 3.1, 9.2, 10.1, 10.2, 10.3_
-  - [~] 11.3 Update `_handleSaveItem()` to read, validate, and save new fields
+  - [x] 11.3 Update `_handleSaveItem()` to read, validate, and save new fields
     - Read contribution, withdrawal, loan, 401(k) fields from modal
     - Validate: contribution/withdrawal amounts finite non-negative; loan amount requires monthly payment; loan fields finite non-negative; 401(k) fields finite non-negative; vesting years integer ≥ 0
     - Build `loan` and `retirement401k` sub-objects (or null if not configured)
     - Set `endYear: null` when "No end date" is checked; skip endYear validation in that case
     - _Requirements: 1.6, 2.6, 3.2, 3.9, 9.9, 10.2, 10.3_
 
-- [ ] 12. Update item row display and dashboard
+- [x] 12. Update item row display and dashboard
   - [x] 12.1 Update `renderItemList()` in `script.js` for new item metadata
     - Contribution configured: append `+$X/mo contribution` or `+$X/yr contribution` to meta line
     - Withdrawal configured: append `−$X/mo withdrawal` or `−$X/yr withdrawal` to meta line
@@ -184,7 +184,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
   - [x] 12.4 Update `calcStats()` to include loan cash outflows and 401(k) contributions in stats
     - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 13. Add tax settings UI to settings panel
+- [x] 13. Add tax settings UI to settings panel
   - [x] 13.1 Add tax settings inputs to `index.html` and wire event handlers in `script.js`
     - Filing Status select (Single / Married Filing Jointly)
     - Birth Year number input
@@ -195,7 +195,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Populate inputs from loaded settings on DOMContentLoaded
     - _Requirements: 11.1, 11.2, 11.3, 11.18_
 
-- [ ] 14. Update `index.html` and `styles.css` for new UI elements
+- [x] 14. Update `index.html` and `styles.css` for new UI elements
   - [x] 14.1 Add HTML structure for new modal field groups, tax breakdown panel, and tax settings section
     - Add contribution/withdrawal/loan/401(k)/open-ended field groups inside the existing modal form
     - Add collapsible tax breakdown card to dashboard area
@@ -207,7 +207,7 @@ Extend the existing Retirement Cash Flow Planner (`script.js`, `index.html`, `st
     - Style conditional field group visibility
     - _Requirements: 8.5, 11.16_
 
-- [ ] 15. Final checkpoint — all tests pass, app fully wired
+- [x] 15. Final checkpoint — all tests pass, app fully wired
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
