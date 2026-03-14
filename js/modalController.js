@@ -49,7 +49,7 @@ export function _updateFieldGroupVisibility(type, category) {
 }
 
 function _clearNewFields() {
-  var ids = ['field-contributionAmount', 'field-loanAmount', 'field-loanRate',
+  var ids = ['field-contributionAmount', 'field-contributionEndYear', 'field-loanAmount', 'field-loanRate',
     'field-loanPayment', 'field-loanEscrow', 'field-loanPropertyTax', 'field-loanExtra',
     'field-withdrawalAmount', 'field-employeeContribution', 'field-employerMatchPct',
     'field-matchCapPct', 'field-annualSalary', 'field-vestingYears', 'field-withdrawalStartYear'];
@@ -162,6 +162,8 @@ export function openEditModal(index) {
   if (contribAmount) contribAmount.value = item.contributionAmount != null ? item.contributionAmount : '';
   const contribFreq = document.getElementById('field-contributionFrequency');
   if (contribFreq) contribFreq.value = item.contributionFrequency || 'monthly';
+  const contribEndYear = document.getElementById('field-contributionEndYear');
+  if (contribEndYear) contribEndYear.value = item.contributionEndYear != null ? item.contributionEndYear : '';
 
   // Populate withdrawal fields
   const withdrawAmount = document.getElementById('field-withdrawalAmount');
@@ -270,7 +272,7 @@ export function _handleSaveItem() {
     if (startYear > endYear) { _showModalError('Start Year must be less than or equal to End Year.'); return; }
   }
 
-  let contributionAmount = null, contributionFrequency = null;
+  let contributionAmount = null, contributionFrequency = null, contributionEndYear = null;
   if (type === 'bank' || type === 'investments') {
     const v = (document.getElementById('field-contributionAmount') || {}).value;
     if (v !== '' && v != null) {
@@ -278,6 +280,13 @@ export function _handleSaveItem() {
       if (!isFinite(val) || val < 0) { _showModalError('Contribution Amount must be a finite non-negative number.'); return; }
       contributionAmount = val;
       contributionFrequency = (document.getElementById('field-contributionFrequency') || {}).value || 'monthly';
+    }
+    const ceyRaw = (document.getElementById('field-contributionEndYear') || {}).value;
+    if (ceyRaw !== '' && ceyRaw != null) {
+      const ceyVal = Number(ceyRaw);
+      if (!isFinite(ceyVal)) { _showModalError('Contribution End Year must be a valid number.'); return; }
+      if (ceyVal < startYear) { _showModalError('Contribution End Year must be \u2265 Start Year.'); return; }
+      contributionEndYear = ceyVal;
     }
   }
 
@@ -337,13 +346,13 @@ export function _handleSaveItem() {
     const editIndex = Number(editIndexRaw);
     state.items[editIndex] = Object.assign({}, state.items[editIndex], {
       type, category, name, amount, rate, startYear, endYear,
-      contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency, loan, retirement401k
+      contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency, loan, retirement401k
     });
   } else {
     state.items.push({
       id: _generateUUID(), type, category, name, amount, rate, startYear, endYear,
       createdAt: new Date().toISOString(),
-      contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency, loan, retirement401k
+      contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency, loan, retirement401k
     });
   }
 

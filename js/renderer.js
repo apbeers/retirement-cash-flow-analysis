@@ -4,7 +4,7 @@
 
 import { ALL_TYPES, MAX_ITEMS, DEFAULT_SETTINGS, ASSET_TYPES } from './constants.js';
 import { formatMoney } from './prettyPrinter.js';
-import { calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, calcProjection, calcStats } from './calculator.js';
+import { calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule, getLoanPayoffYear, calcProjection, calcStats } from './calculator.js';
 import { TYPE_LABELS, TYPE_ICONS, SECTION_META, _escapeHtml } from './uiConstants.js';
 import { state } from './appState.js';
 
@@ -39,7 +39,9 @@ export function renderItemList() {
     const meta = item.category + ' \u00B7 ' + yr + ' \u00B7 ' + rs + item.rate + '%';
     var extra = '';
     if (item.contributionAmount > 0 && item.contributionFrequency) {
-      extra += '<div class="item-meta">+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution</div>';
+      var contribText = '+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution';
+      if (item.contributionEndYear != null) contribText += ' (until ' + item.contributionEndYear + ')';
+      extra += '<div class="item-meta">' + contribText + '</div>';
     }
     if (item.withdrawalAmount > 0 && item.withdrawalFrequency) {
       extra += '<div class="item-meta">\u2212' + formatMoney(item.withdrawalAmount) + (item.withdrawalFrequency === 'monthly' ? '/mo' : '/yr') + ' withdrawal</div>';
@@ -49,6 +51,12 @@ export function renderItemList() {
       var lb = sch.length > 0 ? sch[0].closingBalance : item.loan.loanAmount;
       var eq = Math.max(0, calcItemValue(item, item.startYear) - lb);
       extra += '<div class="item-meta">Loan: ' + formatMoney(lb) + ' balance \u00B7 Equity: ' + formatMoney(eq) + '</div>';
+      var payoffYear = getLoanPayoffYear(sch);
+      if (payoffYear != null) {
+        extra += '<div class="item-meta">Paid off: ' + payoffYear + '</div>';
+      } else {
+        extra += '<div class="item-meta">Paid off: beyond ' + projEnd + '</div>';
+      }
     }
     if (item.retirement401k) {
       var r = item.retirement401k, ec = r.employeeContribution || 0;

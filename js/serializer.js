@@ -10,7 +10,7 @@ export function exportToXlsx(items) {
 
   const headers = [
     'id', 'type', 'category', 'name', 'amount', 'rate', 'startYear', 'endYear', 'createdAt',
-    'contributionAmount', 'contributionFrequency', 'withdrawalAmount', 'withdrawalFrequency',
+    'contributionAmount', 'contributionFrequency', 'contributionEndYear', 'withdrawalAmount', 'withdrawalFrequency',
     'loanAmount', 'loanAnnualInterestRate', 'loanMonthlyPayment', 'loanEscrowMonthly',
     'loanPropertyTaxAnnual', 'loanExtraMonthlyPayment',
     'employeeContribution', 'employerMatchPct', 'employerMatchCapPct', 'annualSalary',
@@ -25,6 +25,7 @@ export function exportToXlsx(items) {
       item.startYear, item.endYear == null ? '' : item.endYear, item.createdAt,
       item.contributionAmount != null ? item.contributionAmount : '',
       item.contributionFrequency != null ? item.contributionFrequency : '',
+      item.contributionEndYear != null ? item.contributionEndYear : '',
       item.withdrawalAmount != null ? item.withdrawalAmount : '',
       item.withdrawalFrequency != null ? item.withdrawalFrequency : '',
       loan.loanAmount != null ? loan.loanAmount : '',
@@ -80,6 +81,7 @@ export function importFromXlsx(file) {
 
           const contributionAmount = numOrNull(row.contributionAmount);
           const contributionFrequency = strOrNull(row.contributionFrequency);
+          const contributionEndYear = numOrNull(row.contributionEndYear);
           const withdrawalAmount = numOrNull(row.withdrawalAmount);
           const withdrawalFrequency = strOrNull(row.withdrawalFrequency);
 
@@ -120,7 +122,7 @@ export function importFromXlsx(file) {
             amount: Number(row.amount), rate: Number(row.rate) || 0,
             startYear: Number(row.startYear), endYear: endYear,
             createdAt: row.createdAt || '',
-            contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency,
+            contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency,
             loan, retirement401k
           });
         }

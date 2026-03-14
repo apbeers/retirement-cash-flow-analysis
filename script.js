@@ -18,7 +18,7 @@ export { formatMoney } from './js/prettyPrinter.js';
 // Calculator
 export {
   calcItemValue, calcItemBalance, calc401kBalance, calcLoanSchedule,
-  inflateBrackets, applyMarginalBrackets, determineLTCGTax,
+  getLoanPayoffYear, inflateBrackets, applyMarginalBrackets, determineLTCGTax,
   calcTax, calcProjection, calcStats
 } from './js/calculator.js';
 

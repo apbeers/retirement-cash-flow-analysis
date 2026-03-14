@@ -191,9 +191,11 @@ function calcItemBalance(item, year, balanceCache, projectionEndYear) {
 
     var annualContrib = 0;
     if (item.contributionAmount != null && item.contributionAmount > 0) {
-      annualContrib = item.contributionFrequency === 'monthly'
-        ? item.contributionAmount * 12
-        : item.contributionAmount;
+      if (item.contributionEndYear == null || y <= item.contributionEndYear) {
+        annualContrib = item.contributionFrequency === 'monthly'
+          ? item.contributionAmount * 12
+          : item.contributionAmount;
+      }
     }
 
     var annualWithdraw = 0;
@@ -257,13 +259,15 @@ function calc401kBalance(item, year, balanceCache, projectionEndYear) {
       }
       cache[y] = Math.max(0, (prevBalance - annualWithdraw) * (1 + rate / 100));
     } else {
+      var contributionsActive = (item.contributionEndYear == null || y <= item.contributionEndYear);
+      var effectiveEmployee = contributionsActive ? employeeContribution : 0;
       var yearsActive = y - startYear;
       var employerMatch = 0;
-      if (vestingYears <= 0 || yearsActive >= vestingYears) {
-        var matchableAmount = Math.min(employeeContribution, annualSalary * employerMatchCapPct / 100);
+      if (contributionsActive && (vestingYears <= 0 || yearsActive >= vestingYears)) {
+        var matchableAmount = Math.min(effectiveEmployee, annualSalary * employerMatchCapPct / 100);
         employerMatch = matchableAmount * employerMatchPct / 100;
       }
-      cache[y] = (prevBalance + employeeContribution + employerMatch) * (1 + rate / 100);
+      cache[y] = (prevBalance + effectiveEmployee + employerMatch) * (1 + rate / 100);
     }
   }
 
@@ -328,6 +332,12 @@ function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
   }
 
   return schedule;
+}
+function getLoanPayoffYear(schedule) {
+  for (var i = 0; i < schedule.length; i++) {
+    if (schedule[i].closingBalance <= 0) return schedule[i].year;
+  }
+  return null;
 }
 function inflateBrackets(brackets, inflationFactor) {
   return brackets.map(function(b) {
@@ -587,7 +597,7 @@ function exportToXlsx(items) {
 
   const headers = [
     'id', 'type', 'category', 'name', 'amount', 'rate', 'startYear', 'endYear', 'createdAt',
-    'contributionAmount', 'contributionFrequency', 'withdrawalAmount', 'withdrawalFrequency',
+    'contributionAmount', 'contributionFrequency', 'contributionEndYear', 'withdrawalAmount', 'withdrawalFrequency',
     'loanAmount', 'loanAnnualInterestRate', 'loanMonthlyPayment', 'loanEscrowMonthly',
     'loanPropertyTaxAnnual', 'loanExtraMonthlyPayment',
     'employeeContribution', 'employerMatchPct', 'employerMatchCapPct', 'annualSalary',
@@ -602,6 +612,7 @@ function exportToXlsx(items) {
       item.startYear, item.endYear == null ? '' : item.endYear, item.createdAt,
       item.contributionAmount != null ? item.contributionAmount : '',
       item.contributionFrequency != null ? item.contributionFrequency : '',
+      item.contributionEndYear != null ? item.contributionEndYear : '',
       item.withdrawalAmount != null ? item.withdrawalAmount : '',
       item.withdrawalFrequency != null ? item.withdrawalFrequency : '',
       loan.loanAmount != null ? loan.loanAmount : '',
@@ -656,6 +667,7 @@ function importFromXlsx(file) {
 
           const contributionAmount = numOrNull(row.contributionAmount);
           const contributionFrequency = strOrNull(row.contributionFrequency);
+          const contributionEndYear = numOrNull(row.contributionEndYear);
           const withdrawalAmount = numOrNull(row.withdrawalAmount);
           const withdrawalFrequency = strOrNull(row.withdrawalFrequency);
 
@@ -696,7 +708,7 @@ function importFromXlsx(file) {
             amount: Number(row.amount), rate: Number(row.rate) || 0,
             startYear: Number(row.startYear), endYear: endYear,
             createdAt: row.createdAt || '',
-            contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency,
+            contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency,
             loan, retirement401k
           });
         }
@@ -805,7 +817,9 @@ function renderItemList() {
     const meta = item.category + ' \u00B7 ' + yr + ' \u00B7 ' + rs + item.rate + '%';
     var extra = '';
     if (item.contributionAmount > 0 && item.contributionFrequency) {
-      extra += '<div class="item-meta">+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution</div>';
+      var contribText = '+' + formatMoney(item.contributionAmount) + (item.contributionFrequency === 'monthly' ? '/mo' : '/yr') + ' contribution';
+      if (item.contributionEndYear != null) contribText += ' (until ' + item.contributionEndYear + ')';
+      extra += '<div class="item-meta">' + contribText + '</div>';
     }
     if (item.withdrawalAmount > 0 && item.withdrawalFrequency) {
       extra += '<div class="item-meta">\u2212' + formatMoney(item.withdrawalAmount) + (item.withdrawalFrequency === 'monthly' ? '/mo' : '/yr') + ' withdrawal</div>';
@@ -815,6 +829,12 @@ function renderItemList() {
       var lb = sch.length > 0 ? sch[0].closingBalance : item.loan.loanAmount;
       var eq = Math.max(0, calcItemValue(item, item.startYear) - lb);
       extra += '<div class="item-meta">Loan: ' + formatMoney(lb) + ' balance \u00B7 Equity: ' + formatMoney(eq) + '</div>';
+      var payoffYear = getLoanPayoffYear(sch);
+      if (payoffYear != null) {
+        extra += '<div class="item-meta">Paid off: ' + payoffYear + '</div>';
+      } else {
+        extra += '<div class="item-meta">Paid off: beyond ' + projEnd + '</div>';
+      }
     }
     if (item.retirement401k) {
       var r = item.retirement401k, ec = r.employeeContribution || 0;
@@ -1107,7 +1127,7 @@ function _updateFieldGroupVisibility(type, category) {
 }
 
 function _clearNewFields() {
-  var ids = ['field-contributionAmount', 'field-loanAmount', 'field-loanRate',
+  var ids = ['field-contributionAmount', 'field-contributionEndYear', 'field-loanAmount', 'field-loanRate',
     'field-loanPayment', 'field-loanEscrow', 'field-loanPropertyTax', 'field-loanExtra',
     'field-withdrawalAmount', 'field-employeeContribution', 'field-employerMatchPct',
     'field-matchCapPct', 'field-annualSalary', 'field-vestingYears', 'field-withdrawalStartYear'];
@@ -1218,6 +1238,8 @@ function openEditModal(index) {
   if (contribAmount) contribAmount.value = item.contributionAmount != null ? item.contributionAmount : '';
   const contribFreq = document.getElementById('field-contributionFrequency');
   if (contribFreq) contribFreq.value = item.contributionFrequency || 'monthly';
+  const contribEndYear = document.getElementById('field-contributionEndYear');
+  if (contribEndYear) contribEndYear.value = item.contributionEndYear != null ? item.contributionEndYear : '';
 
   // Populate withdrawal fields
   const withdrawAmount = document.getElementById('field-withdrawalAmount');
@@ -1324,7 +1346,7 @@ function _handleSaveItem() {
     if (startYear > endYear) { _showModalError('Start Year must be less than or equal to End Year.'); return; }
   }
 
-  let contributionAmount = null, contributionFrequency = null;
+  let contributionAmount = null, contributionFrequency = null, contributionEndYear = null;
   if (type === 'bank' || type === 'investments') {
     const v = (document.getElementById('field-contributionAmount') || {}).value;
     if (v !== '' && v != null) {
@@ -1332,6 +1354,13 @@ function _handleSaveItem() {
       if (!isFinite(val) || val < 0) { _showModalError('Contribution Amount must be a finite non-negative number.'); return; }
       contributionAmount = val;
       contributionFrequency = (document.getElementById('field-contributionFrequency') || {}).value || 'monthly';
+    }
+    const ceyRaw = (document.getElementById('field-contributionEndYear') || {}).value;
+    if (ceyRaw !== '' && ceyRaw != null) {
+      const ceyVal = Number(ceyRaw);
+      if (!isFinite(ceyVal)) { _showModalError('Contribution End Year must be a valid number.'); return; }
+      if (ceyVal < startYear) { _showModalError('Contribution End Year must be \u2265 Start Year.'); return; }
+      contributionEndYear = ceyVal;
     }
   }
 
@@ -1391,13 +1420,13 @@ function _handleSaveItem() {
     const editIndex = Number(editIndexRaw);
     state.items[editIndex] = Object.assign({}, state.items[editIndex], {
       type, category, name, amount, rate, startYear, endYear,
-      contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency, loan, retirement401k
+      contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency, loan, retirement401k
     });
   } else {
     state.items.push({
       id: _generateUUID(), type, category, name, amount, rate, startYear, endYear,
       createdAt: new Date().toISOString(),
-      contributionAmount, contributionFrequency, withdrawalAmount, withdrawalFrequency, loan, retirement401k
+      contributionAmount, contributionFrequency, contributionEndYear, withdrawalAmount, withdrawalFrequency, loan, retirement401k
     });
   }
 

@@ -156,3 +156,39 @@ describe('calcLoanSchedule', () => {
     }
   });
 });
+
+import { getLoanPayoffYear } from '../script.js';
+
+describe('getLoanPayoffYear', () => {
+  it('returns correct payoff year for a loan that pays off within projection', () => {
+    const loan = {
+      loanAmount: 12000, annualInterestRate: 0, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    expect(getLoanPayoffYear(schedule)).toBe(2025);
+  });
+
+  it('returns null for a loan that never pays off within projection', () => {
+    const loan = {
+      loanAmount: 500000, annualInterestRate: 6, monthlyPayment: 500,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    // $500/mo on $500k at 6% won't even cover interest — never pays off
+    expect(getLoanPayoffYear(schedule)).toBeNull();
+  });
+
+  it('returns startYear when loan amount is 0', () => {
+    const loan = {
+      loanAmount: 0, annualInterestRate: 6, monthlyPayment: 1000,
+      escrowMonthly: 0, propertyTaxAnnual: 0, extraMonthlyPayment: 0
+    };
+    const schedule = calcLoanSchedule(loan, 2025, 2030);
+    expect(getLoanPayoffYear(schedule)).toBe(2025);
+  });
+
+  it('returns null for empty schedule', () => {
+    expect(getLoanPayoffYear([])).toBeNull();
+  });
+});

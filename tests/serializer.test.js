@@ -237,3 +237,20 @@ describe('Property 11: Backward-Compatible Import', () => {
     );
   });
 });
+
+describe('contributionEndYear import backward compatibility', () => {
+  it('importing a file without contributionEndYear column sets it to null', async () => {
+    const items = [{
+      id: 'test-1', type: 'bank', category: 'Checking', name: 'Test',
+      amount: 10000, rate: 2, startYear: 2025, endYear: 2030,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      contributionAmount: 500, contributionFrequency: 'monthly'
+    }];
+    // createXlsxFile does NOT include contributionEndYear column (legacy format)
+    const file = createXlsxFile(items);
+    const { items: imported } = await importFromXlsx(file);
+    expect(imported).toHaveLength(1);
+    expect(imported[0].contributionEndYear).toBeNull();
+    expect(imported[0].contributionAmount).toBe(500);
+  });
+});

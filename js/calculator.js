@@ -43,9 +43,11 @@ export function calcItemBalance(item, year, balanceCache, projectionEndYear) {
 
     var annualContrib = 0;
     if (item.contributionAmount != null && item.contributionAmount > 0) {
-      annualContrib = item.contributionFrequency === 'monthly'
-        ? item.contributionAmount * 12
-        : item.contributionAmount;
+      if (item.contributionEndYear == null || y <= item.contributionEndYear) {
+        annualContrib = item.contributionFrequency === 'monthly'
+          ? item.contributionAmount * 12
+          : item.contributionAmount;
+      }
     }
 
     var annualWithdraw = 0;
@@ -110,13 +112,15 @@ export function calc401kBalance(item, year, balanceCache, projectionEndYear) {
       }
       cache[y] = Math.max(0, (prevBalance - annualWithdraw) * (1 + rate / 100));
     } else {
+      var contributionsActive = (item.contributionEndYear == null || y <= item.contributionEndYear);
+      var effectiveEmployee = contributionsActive ? employeeContribution : 0;
       var yearsActive = y - startYear;
       var employerMatch = 0;
-      if (vestingYears <= 0 || yearsActive >= vestingYears) {
-        var matchableAmount = Math.min(employeeContribution, annualSalary * employerMatchCapPct / 100);
+      if (contributionsActive && (vestingYears <= 0 || yearsActive >= vestingYears)) {
+        var matchableAmount = Math.min(effectiveEmployee, annualSalary * employerMatchCapPct / 100);
         employerMatch = matchableAmount * employerMatchPct / 100;
       }
-      cache[y] = (prevBalance + employeeContribution + employerMatch) * (1 + rate / 100);
+      cache[y] = (prevBalance + effectiveEmployee + employerMatch) * (1 + rate / 100);
     }
   }
 
@@ -182,6 +186,13 @@ export function calcLoanSchedule(loanConfig, itemStartYear, projectionEndYear) {
   }
 
   return schedule;
+}
+
+export function getLoanPayoffYear(schedule) {
+  for (var i = 0; i < schedule.length; i++) {
+    if (schedule[i].closingBalance <= 0) return schedule[i].year;
+  }
+  return null;
 }
 
 export function inflateBrackets(brackets, inflationFactor) {

@@ -114,3 +114,49 @@ describe('calcItemBalance', () => {
     expect(calcItemBalance(item, 2026, cache)).toBeCloseTo(14410);
   });
 });
+
+describe('calcItemBalance — contributionEndYear', () => {
+  it('stops contributions after contributionEndYear', () => {
+    const item = {
+      id: 'cey1', amount: 10000, rate: 0, startYear: 2025, endYear: 2035,
+      contributionAmount: 1000, contributionFrequency: 'annual',
+      contributionEndYear: 2028
+    };
+    const cache = {};
+    // Years 2025-2028: contributions applied (4 years × $1000 = $4000 + $10000 seed)
+    expect(calcItemBalance(item, 2028, cache, 2035)).toBeCloseTo(14000);
+    // Year 2029+: no more contributions, balance stays flat at 0% rate
+    expect(calcItemBalance(item, 2029, cache, 2035)).toBeCloseTo(14000);
+    expect(calcItemBalance(item, 2032, cache, 2035)).toBeCloseTo(14000);
+  });
+
+  it('contributionEndYear: null matches existing behavior (backward compat)', () => {
+    const withNull = {
+      id: 'cey2a', amount: 10000, rate: 0, startYear: 2025, endYear: 2030,
+      contributionAmount: 1000, contributionFrequency: 'annual',
+      contributionEndYear: null
+    };
+    const without = {
+      id: 'cey2b', amount: 10000, rate: 0, startYear: 2025, endYear: 2030,
+      contributionAmount: 1000, contributionFrequency: 'annual'
+    };
+    const cacheA = {}, cacheB = {};
+    for (let y = 2025; y <= 2030; y++) {
+      expect(calcItemBalance(withNull, y, cacheA, 2030))
+        .toBeCloseTo(calcItemBalance(without, y, cacheB, 2030));
+    }
+  });
+
+  it('contributionEndYear === startYear gets exactly one year of contributions', () => {
+    const item = {
+      id: 'cey3', amount: 5000, rate: 0, startYear: 2025, endYear: 2030,
+      contributionAmount: 2000, contributionFrequency: 'annual',
+      contributionEndYear: 2025
+    };
+    const cache = {};
+    // Year 2025: seed + 1 contribution = 7000
+    expect(calcItemBalance(item, 2025, cache, 2030)).toBeCloseTo(7000);
+    // Year 2026: no contribution, flat at 0% rate
+    expect(calcItemBalance(item, 2026, cache, 2030)).toBeCloseTo(7000);
+  });
+});
