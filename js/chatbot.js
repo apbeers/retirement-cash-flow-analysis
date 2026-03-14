@@ -4,7 +4,8 @@
 
 import { state } from './appState.js';
 import { formatMoney } from './prettyPrinter.js';
-import { calcProjection } from './calculator.js';
+import { calcProjection, calcItemBalance, calc401kBalance, calcLoanSchedule, getLoanPayoffYear, calcItemValue } from './calculator.js';
+import { ASSET_TYPES } from './constants.js';
 
 var MODEL_ID = 'Qwen2.5-3B-Instruct-q4f16_1-MLC';
 
@@ -76,8 +77,9 @@ export function assembleFinancialContext() {
   }
   lines.push('');
   // Pre-computed projection table so the model can look up values directly
-  if (state.items.length > 0) {
-    var proj = calcProjection(state.items, state.settings);
+  var proj = state.items.length > 0 ? calcProjection(state.items, state.settings) : [];
+  var loanItems = state.items.filter(function(it) { return it.loan && it.loan.loanAmount > 0; });
+  if (proj.length > 0) {
     lines.push('PROJECTION TABLE (pre-computed, use for lookups):');
     lines.push('Year | Net Worth | Bank | Investments | Property | Vehicles | Rentals | Inflows | Outflows | Est. Tax');
     for (var p = 0; p < proj.length; p++) {
@@ -88,7 +90,109 @@ export function assembleFinancialContext() {
     }
     lines.push('');
   }
-  lines.push('INSTRUCTIONS: Answer the user\'s question using ONLY the data above. For questions about net worth or balances in a specific year, look up the value in the PROJECTION TABLE. Be specific with numbers. Do not try to calculate — use the table.');
+  // --- Loan Summaries ---
+  if (loanItems.length > 0) {
+    var endYr = s.startYear + s.projectionYears - 1;
+    lines.push('LOAN SUMMARIES:');
+    for (var li = 0; li < loanItems.length; li++) {
+      var lItem = loanItems[li];
+      var sched = calcLoanSchedule(lItem.loan, lItem.startYear, endYr);
+      var payoff = getLoanPayoffYear(sched);
+      var totalInt = 0;
+      for (var si = 0; si < sched.length; si++) totalInt += sched[si].interestPaid;
+      lines.push('- "' + lItem.name + '": Loan ' + formatMoney(lItem.loan.loanAmount) + ', Payoff ' + (payoff || 'beyond projection') + ', Total Interest ' + formatMoney(Math.round(totalInt)));
+    }
+    lines.push('');
+  }
+
+  // --- Monthly Cash Flow by Year (sampled) ---
+  if (proj && proj.length > 0) {
+    var step = proj.length > 15 ? 5 : (proj.length > 8 ? 2 : 1);
+    lines.push('MONTHLY CASH FLOW (net monthly inflows minus outflows):');
+    lines.push('Year | Monthly In | Monthly Out | Net Monthly');
+    for (var ci = 0; ci < proj.length; ci += step) {
+      var cr = proj[ci];
+      var mIn = Math.round(cr.byType.inflows / 12);
+      var mOut = Math.round(cr.byType.outflows / 12);
+      lines.push(cr.year + ' | ' + formatMoney(mIn) + ' | ' + formatMoney(mOut) + ' | ' + formatMoney(mIn - mOut));
+    }
+    lines.push('');
+  }
+
+  // --- Milestones ---
+  if (proj && proj.length > 0) {
+    var thresholds = [100000, 250000, 500000, 1000000, 2000000, 5000000];
+    var crossed = {};
+    for (var mi = 0; mi < proj.length; mi++) {
+      for (var ti = 0; ti < thresholds.length; ti++) {
+        var th = thresholds[ti];
+        if (!crossed[th] && proj[mi].netWorth >= th) crossed[th] = proj[mi].year;
+      }
+    }
+    var milestoneLines = [];
+    for (var ti2 = 0; ti2 < thresholds.length; ti2++) {
+      if (crossed[thresholds[ti2]]) milestoneLines.push('- Net worth reaches ' + formatMoney(thresholds[ti2]) + ' in ' + crossed[thresholds[ti2]]);
+    }
+    // Loan payoff milestones
+    for (var lmi = 0; lmi < loanItems.length; lmi++) {
+      var lmItem = loanItems[lmi];
+      var lmSched = calcLoanSchedule(lmItem.loan, lmItem.startYear, s.startYear + s.projectionYears - 1);
+      var lmPayoff = getLoanPayoffYear(lmSched);
+      if (lmPayoff) milestoneLines.push('- "' + lmItem.name + '" loan paid off in ' + lmPayoff);
+    }
+    // Contribution end milestones
+    for (var cei = 0; cei < state.items.length; cei++) {
+      var ceItem = state.items[cei];
+      if (ceItem.contributionEndYear && ceItem.contributionAmount > 0) {
+        milestoneLines.push('- "' + ceItem.name + '" contributions end in ' + ceItem.contributionEndYear);
+      }
+    }
+    if (milestoneLines.length > 0) {
+      lines.push('MILESTONES:');
+      lines.push(milestoneLines.join('\n'));
+      lines.push('');
+    }
+  }
+
+  // --- Per-Item Balance Table (sampled) ---
+  if (state.items.length > 0 && proj && proj.length > 0) {
+    var balCache = {};
+    var endYear = s.startYear + s.projectionYears - 1;
+    var assetItems = state.items.filter(function(it) { return ASSET_TYPES.indexOf(it.type) !== -1; });
+    if (assetItems.length > 0) {
+      var pStep = proj.length > 15 ? 5 : (proj.length > 8 ? 2 : 1);
+      var sampleYears = [];
+      for (var sy = 0; sy < proj.length; sy += pStep) sampleYears.push(proj[sy].year);
+      if (sampleYears[sampleYears.length - 1] !== proj[proj.length - 1].year) sampleYears.push(proj[proj.length - 1].year);
+
+      lines.push('PER-ITEM BALANCES:');
+      var hdr = 'Item';
+      for (var hi = 0; hi < sampleYears.length; hi++) hdr += ' | ' + sampleYears[hi];
+      lines.push(hdr);
+      for (var ai = 0; ai < assetItems.length; ai++) {
+        var aItem = assetItems[ai];
+        var row2 = '"' + aItem.name + '"';
+        var is401k = (aItem.category === 'Traditional 401(k)' || aItem.category === 'Roth 401(k)') && aItem.retirement401k;
+        var hasContrib = (aItem.contributionAmount != null && aItem.contributionAmount > 0) || (aItem.withdrawalAmount != null && aItem.withdrawalAmount > 0);
+        for (var yi = 0; yi < sampleYears.length; yi++) {
+          var yr2 = sampleYears[yi];
+          var val = 0;
+          if (is401k) {
+            val = calc401kBalance(aItem, yr2, balCache, endYear);
+          } else if ((aItem.type === 'bank' || aItem.type === 'investments') && hasContrib) {
+            val = calcItemBalance(aItem, yr2, balCache, endYear);
+          } else {
+            val = aItem.endYear == null ? aItem.amount * Math.pow(1 + aItem.rate / 100, yr2 - aItem.startYear) : calcItemValue(aItem, yr2);
+          }
+          row2 += ' | ' + formatMoney(Math.round(val));
+        }
+        lines.push(row2);
+      }
+      lines.push('');
+    }
+  }
+
+  lines.push('INSTRUCTIONS: Answer the user\'s question using ONLY the data above. For questions about net worth or balances in a specific year, look up the value in the PROJECTION TABLE or PER-ITEM BALANCES. For loan questions, check LOAN SUMMARIES. For cash flow, check MONTHLY CASH FLOW. For milestones, check MILESTONES. Be specific with numbers. Do not calculate — use the tables.');
   return lines.join('\n');
 }
 
