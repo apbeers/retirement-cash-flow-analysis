@@ -5,6 +5,7 @@
 
 import { initiateDelete, confirmDelete, cancelDelete, openEditModal } from './modalController.js';
 import { toggleItemChart } from './renderer.js';
+import { navigateToItem } from './renderer.js';
 
 // These functions are referenced in onclick="" attributes in rendered HTML,
 // so they must be available as globals in the browser.
@@ -13,6 +14,7 @@ window.confirmDelete = confirmDelete;
 window.cancelDelete = cancelDelete;
 window.openEditModal = openEditModal;
 window.toggleItemChart = toggleItemChart;
+window.navigateToItem = navigateToItem;
 
 // Import eventHandlers to trigger its DOMContentLoaded side effects
 import './eventHandlers.js';

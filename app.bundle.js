@@ -789,6 +789,8 @@ const state = {
 
 // Track per-item chart instances so we can destroy them on re-render
 var _itemCharts = {};
+
+var TYPE_COLORS = { bank:'#4fc3f7', investments:'#81c784', property:'#ffb74d', vehicles:'#e57373', rentals:'#ba68c8', inflows:'#4db6ac', outflows:'#f06292' };
 function renderItemList() {
   const listArea = document.getElementById('item-list-area');
   const statsRow = document.getElementById('stats-row');
@@ -949,6 +951,119 @@ function toggleItemChart(idx) {
     }
   });
 }
+function buildTimelineBars(items, settings) {
+  var projStart = settings.startYear;
+  var projEnd = projStart + settings.projectionYears - 1;
+  var totalYears = projEnd - projStart + 1;
+  if (totalYears <= 0) return [];
+
+  var bars = [];
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var barStart = Math.max(item.startYear, projStart);
+    var barEnd = Math.min(item.endYear == null ? projEnd : item.endYear, projEnd);
+    if (barStart > projEnd || barEnd < projStart) continue;
+
+    var leftPct = (barStart - projStart) / totalYears * 100;
+    var widthPct = (barEnd - barStart + 1) / totalYears * 100;
+
+    var contributionEndPct = null;
+    if (item.contributionEndYear != null && item.contributionEndYear >= barStart && item.contributionEndYear <= barEnd) {
+      contributionEndPct = (item.contributionEndYear - barStart) / (barEnd - barStart + 1) * 100;
+    }
+
+    var loanPayoffPct = null;
+    var loanPayoffYear = null;
+    var loanPaymentAmount = null;
+    if (item.loan && item.loan.loanAmount > 0) {
+      loanPaymentAmount = item.loan.monthlyPayment || 0;
+      var schedule = calcLoanSchedule(item.loan, item.startYear, projEnd);
+      loanPayoffYear = getLoanPayoffYear(schedule);
+      if (loanPayoffYear != null && loanPayoffYear >= barStart && loanPayoffYear <= barEnd) {
+        loanPayoffPct = (loanPayoffYear - barStart) / (barEnd - barStart + 1) * 100;
+      } else {
+        loanPayoffYear = null;
+      }
+    }
+
+    bars.push({
+      itemIndex: i,
+      name: item.name,
+      type: item.type,
+      color: TYPE_COLORS[item.type] || '#aaa',
+      startYear: barStart,
+      endYear: barEnd,
+      leftPct: leftPct,
+      widthPct: widthPct,
+      contributionEndYear: item.contributionEndYear != null && item.contributionEndYear >= barStart && item.contributionEndYear <= barEnd ? item.contributionEndYear : null,
+      contributionEndPct: contributionEndPct,
+      loanPayoffYear: loanPayoffYear,
+      loanPayoffPct: loanPayoffPct,
+      hasWithdrawal: item.withdrawalAmount > 0,
+      amount: item.amount,
+      contributionAmount: item.contributionAmount || null,
+      contributionFrequency: item.contributionFrequency || null,
+      withdrawalAmount: item.withdrawalAmount || null,
+      withdrawalFrequency: item.withdrawalFrequency || null,
+      loanPaymentAmount: loanPaymentAmount
+    });
+  }
+  return bars;
+}
+function renderTimeline() {
+  var container = document.getElementById('timeline-container');
+  if (!container) return;
+
+  if (state.activeSection !== 'dashboard' || state.items.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  var bars = buildTimelineBars(state.items, state.settings);
+  if (bars.length === 0) { container.style.display = 'none'; return; }
+
+  container.style.display = '';
+  var projStart = state.settings.startYear;
+  var projEnd = projStart + state.settings.projectionYears - 1;
+  var totalYears = projEnd - projStart + 1;
+
+  // Year axis ticks (every ~5 years)
+  var tickInterval = totalYears <= 10 ? 1 : totalYears <= 20 ? 2 : 5;
+  var axisHtml = '';
+  for (var y = projStart; y <= projEnd; y += tickInterval) {
+    var pct = (y - projStart) / totalYears * 100;
+    axisHtml += '<span style="left:' + pct + '%">' + y + '</span>';
+  }
+  // Always show last year
+  if ((projEnd - projStart) % tickInterval !== 0) {
+    axisHtml += '<span style="left:100%">' + projEnd + '</span>';
+  }
+
+  // Lanes
+  var lanesHtml = '';
+  for (var i = 0; i < bars.length; i++) {
+    var b = bars[i];
+    var markers = '';
+    if (b.contributionEndPct != null) {
+      markers += '<div class="timeline-marker" style="left:' + b.contributionEndPct + '%" title="Contributions end: ' + b.contributionEndYear + '"></div>';
+    }
+    if (b.loanPayoffPct != null) {
+      markers += '<div class="timeline-marker" style="left:' + b.loanPayoffPct + '%" title="Loan paid off: ' + b.loanPayoffYear + '"></div>';
+    }
+
+    // Build tooltip
+    var tip = b.name + ' \u00B7 ' + formatMoney(b.amount);
+    if (b.contributionAmount) tip += ' \u00B7 +' + formatMoney(b.contributionAmount) + (b.contributionFrequency === 'monthly' ? '/mo' : '/yr');
+    if (b.contributionEndYear) tip += ' until ' + b.contributionEndYear;
+    if (b.withdrawalAmount) tip += ' \u00B7 \u2212' + formatMoney(b.withdrawalAmount) + (b.withdrawalFrequency === 'monthly' ? '/mo' : '/yr');
+    if (b.loanPaymentAmount) tip += ' \u00B7 Loan: ' + formatMoney(b.loanPaymentAmount) + '/mo';
+    tip += ' \u00B7 ' + b.startYear + '\u2013' + b.endYear;
+
+    lanesHtml += '<div class="timeline-lane"><span class="timeline-lane-label" title="' + _escapeHtml(b.name) + '">' + _escapeHtml(b.name) + '</span><div class="timeline-bar-area"><div class="timeline-bar" style="left:' + b.leftPct + '%;width:' + b.widthPct + '%;background:' + b.color + ';" title="' + _escapeHtml(tip) + '" onclick="navigateToItem(' + b.itemIndex + ')">' + markers + '</div></div></div>';
+  }
+
+  container.innerHTML = '<h6 class="mb-2"><i class="bi bi-calendar-range me-2"></i>Cash Flow Timeline</h6><div class="timeline-wrapper"><div class="timeline-axis">' + axisHtml + '</div>' + lanesHtml + '</div>';
+}
 function renderTaxBreakdown() {
   const panel = document.getElementById('taxBreakdownPanel');
   if (!panel) return;
@@ -1021,10 +1136,9 @@ function updateChart() {
     const theme = state.settings.theme || DEFAULT_SETTINGS.theme;
     const accent = theme.accent || '#58a6ff', textColor = theme.text || '#e0e0e0', gridColor = 'rgba(255,255,255,0.1)';
     const datasets = [{ label: 'Total Net Worth', data: proj.map(p => p.netWorth), borderColor: accent, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 }];
-    const tc = { bank:'#4fc3f7', investments:'#81c784', property:'#ffb74d', vehicles:'#e57373', rentals:'#ba68c8', inflows:'#4db6ac', outflows:'#f06292' };
     for (const type of ALL_TYPES) {
       if (!state.items.some(i => i.type === type)) continue;
-      datasets.push({ label: TYPE_LABELS[type], data: proj.map(p => p.byType[type]), borderColor: tc[type]||'#aaa', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, tension: 0.3 });
+      datasets.push({ label: TYPE_LABELS[type], data: proj.map(p => p.byType[type]), borderColor: TYPE_COLORS[type]||'#aaa', backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, tension: 0.3 });
     }
     // Tax estimate dashed line
     if (proj.some(p => p.tax && p.tax.totalEstimatedTax > 0)) {
@@ -1041,6 +1155,18 @@ function updateChart() {
     if (state.chartInstance) { state.chartInstance.data = cfg.data; state.chartInstance.options = cfg.options; state.chartInstance.update(); }
     else { state.chartInstance = new Chart(canvas, cfg); }
   } catch (err) { console.error('Chart render error:', err); }
+}
+function navigateToItem(itemIndex) {
+  var item = state.items[itemIndex];
+  if (!item) return;
+  state.activeSection = item.type;
+  render();
+  var row = document.querySelector('.item-row[data-item-index="' + itemIndex + '"]');
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('highlight');
+    setTimeout(function() { row.classList.remove('highlight'); }, 1000);
+  }
 }
 function render() {
   const meta = SECTION_META[state.activeSection] || SECTION_META.dashboard;
@@ -1081,6 +1207,7 @@ function render() {
   updateBadges();
   updateStats();
   updateChart();
+  renderTimeline();
   renderTaxBreakdown();
 }
 
@@ -1731,5 +1858,6 @@ window.confirmDelete = confirmDelete;
 window.cancelDelete = cancelDelete;
 window.openEditModal = openEditModal;
 window.toggleItemChart = toggleItemChart;
+window.navigateToItem = navigateToItem;
 
 })();
